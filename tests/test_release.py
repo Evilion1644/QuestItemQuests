@@ -52,7 +52,7 @@ class ReleaseTests(unittest.TestCase):
                         release.verify()
 
     def test_existing_claim_prevents_upload(self):
-        cfg = release.config() | {"curseforge_project_id": 123}
+        cfg = release.config() | {"curseforge_project_id": 123, "previously_published_versions": []}
         archive = Path(__file__)
         env = {"GITHUB_EVENT_NAME": "push", "GITHUB_REF_TYPE": "tag", "CF_API_TOKEN": "test-only", "GH_TOKEN": "test-only", "GITHUB_REPOSITORY": "Evilion1644/QuestItemQuests"}
         with patch.dict(release.os.environ, env), \

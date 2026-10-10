@@ -1,0 +1,17 @@
+package-as: QuestItemQuests
+enable-nolib-creation: no
+enable-toc-creation: no
+manual-changelog:
+  filename: .build/CHANGELOG.md
+  markup-type: markdown
+move-folders:
+  QuestItemQuests/QuestItemQuests: QuestItemQuests
+ignore:
+  - .github
+  - .gitignore
+  - .pkgmeta
+  - .build
+  - docs
+  - scripts
+  - tests
+  - release-config.json

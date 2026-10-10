@@ -26,6 +26,11 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y lua5.1
       - name: Test release safeguards
         run: python -m unittest discover -s tests -v
+      - name: Test addon, guide and data
+        run: |
+          lua5.1 tools/verify_build.lua
+          lua5.1 tests/run.lua
+          lua5.1 tests/guide.lua
       - name: Validate sources and generate English changelog
         run: python scripts/release.py prepare
       - name: Build without publishing
@@ -34,12 +39,12 @@ jobs:
           # Avoid Packager skipping a main push whose commit also has a tag.
           GITHUB_EVENT_NAME: workflow_dispatch
         with:
-          args: -d -e -l -u -g 1.60.1 -w 0 -a 0 -n "QuestItemQuests-{project-version}-forever"
+          args: -d -e -l -u -g 1.60.1 -w 0 -a 0 -n "QLens-{project-version}-forever"
       - name: Validate the actual ZIP
         run: python scripts/release.py verify
       - uses: actions/upload-artifact@v4
         with:
-          name: QuestItemQuests-${{ github.sha }}
+          name: QLens-${{ github.sha }}
           path: |
             .release/*.zip
             .build/CHANGELOG.md
@@ -67,7 +72,7 @@ jobs:
           python-version: '3.12'
       - uses: actions/download-artifact@v4
         with:
-          name: QuestItemQuests-${{ github.sha }}
+          name: QLens-${{ github.sha }}
           path: .
       - name: Install Lua syntax checker
         run: sudo apt-get update && sudo apt-get install -y lua5.1

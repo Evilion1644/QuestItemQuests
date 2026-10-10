@@ -1,20 +1,20 @@
-# Сборка и публикация QuestItemQuests
+# Сборка и публикация QLens (ранее QuestItemQuests)
 
 ## Первичная настройка
 
 1. В `release-config.json` уже указан предоставленный владельцем существующий CurseForge Project ID **1734956**. Новый проект создавать не нужно.
 2. Секрет репозитория `CF_API_KEY` уже создан. Workflow передаёт его только шагу публикации как `CF_API_TOKEN`; значение токена не нужно добавлять в файлы.
-3. Перед первым релизом внесите версии, уже загруженные вручную на CurseForge, в `previously_published_versions` (например, `["1.4.1"]`). Маркеры workflow защищают последующие автоматические публикации, но не знают историю ручных загрузок.
+3. Подтверждённая владельцем ручная загрузка `1.0.0` уже внесена в `previously_published_versions`. Новые ручные загрузки также добавляйте в этот список. Маркеры workflow защищают последующие автоматические публикации.
 4. В GitHub Settings → Environments создайте `curseforge`. Если требуется подтверждение каждого релиза, настройте Required reviewers (доступность зависит от тарифа). Само имя environment в YAML не включает обязательное одобрение.
 5. Разрешите GitHub Actions. Политики репозитория должны позволять `GITHUB_TOKEN` создавать ветки `curseforge-releases/*` для постоянных маркеров отправки.
 
 ## Что запускается автоматически
 
 - Push в `main`, pull request в `main` и ручной Run workflow: проверка исходников, Lua 5.1, генерация английского changelog, сборка BigWigsMods/packager@v2 **без публикации**, проверка ZIP и сохранение Actions artifact на 90 дней по стандартным настройкам GitHub (либо по политике репозитория).
-- Push тега строго `vX.Y.Z`: те же проверки, затем публикация в CurseForge. Версия TOC должна быть `X.Y.Z`; коммит должен принадлежать истории `origin/main`. Другие теги, начинающиеся с `v`, завершатся ошибкой проверки. `workflow_dispatch` никогда не публикует, даже при выборе тега.
-- Архив содержит `QuestItemQuests/QuestItemQuests.toc`, оба Lua-файла и README. Changelog сохраняется рядом как Actions artifact и передаётся CurseForge при публикации. `.pkgmeta` поднимает вложенную папку на один уровень. Скрипты CI, настройки и документация релиза в ZIP не попадают.
+- Push тега `vX.Y.Z`, `vX.Y.Z-alpha.N` или `vX.Y.Z-beta.N`: те же проверки, затем публикация в CurseForge с типом release, alpha или beta соответственно. Версии обоих TOC должны совпадать с тегом без `v`; коммит должен принадлежать истории `origin/main`. Другие теги, начинающиеся с `v`, завершатся ошибкой проверки. `workflow_dispatch` никогда не публикует, даже при выборе тега.
+- Архив содержит две папки рядом: `QLens/` и `QLens_Guide/`, включая их TOC, Lua, README и сведения об источниках данных. Changelog сохраняется рядом как Actions artifact и передаётся CurseForge при публикации. `.pkgmeta` поднимает оба модуля на верхний уровень ZIP. Скрипты CI, настройки и документация релиза в ZIP не попадают.
 
-Для нового релиза обновите `## Version` в `QuestItemQuests/QuestItemQuests.toc`, отправьте изменения в `main`, дождитесь успешной сборки. **Только после решения публиковать** выполните, подставив свою новую версию:
+Для нового релиза обновите `## Version` в TOC обоих модулей, отправьте изменения в `main`, дождитесь успешной сборки. Текущая восстановленная версия — `2.0.0-alpha.6`; она должна публиковаться как alpha, а не стабильная 2.0.0. **Только после решения публиковать** выполните, подставив свою новую версию (включая alpha/beta-суффикс, если он есть):
 
 ```sh
 git tag vX.Y.Z
@@ -47,8 +47,11 @@ Changelog создаётся автоматически на английско�
 
 ```sh
 python -m unittest discover -s tests -v
+lua5.1 tools/verify_build.lua
+lua5.1 tests/run.lua
+lua5.1 tests/guide.lua
 python scripts/release.py prepare
-bash /path/to/packager/release.sh -d -e -l -u -g 1.60.1 -w 0 -a 0 -n 'QuestItemQuests-{project-version}-forever'
+bash /path/to/packager/release.sh -d -e -l -u -g 1.60.1 -w 0 -a 0 -n 'QLens-{project-version}-forever'
 python scripts/release.py verify
 ```
 

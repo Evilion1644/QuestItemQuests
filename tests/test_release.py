@@ -11,6 +11,27 @@ spec.loader.exec_module(release)
 
 
 class ReleaseTests(unittest.TestCase):
+    def test_prerelease_type_is_preserved(self):
+        self.assertEqual(release.release_type("2.0.0-alpha.6"), "alpha")
+        self.assertEqual(release.release_type("2.0.0-beta.1"), "beta")
+        self.assertEqual(release.release_type("2.0.0"), "release")
+        for version in ("2.0.0-alpha", "2.0.0-alpha.06", "2.0.0-rc.1", "2.0.0-forever", "02.0.0"):
+            with self.assertRaises(ValueError):
+                release.release_type(version)
+
+    def test_core_and_guide_versions_must_match(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for addon, version in zip(release.ADDONS, ("2.0.0-alpha.6", "2.0.0-alpha.5")):
+                folder = root / addon
+                folder.mkdir()
+                (folder / f"{addon}.toc").write_text(f"## Interface: 16001\n## Version: {version}\nmain.lua\n")
+                (folder / "main.lua").write_text("local valid = true\n")
+            cfg = release.config()
+            with patch.object(release, "ROOT", root), patch.object(release, "config", return_value=cfg):
+                with self.assertRaisesRegex(ValueError, "Core and Guide versions differ"):
+                    release.sources()
+
     def test_forever_does_not_accept_retail_or_classic(self):
         for type_id in (517, 67408):
             with self.assertRaises(ValueError):
@@ -44,7 +65,7 @@ class ReleaseTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / ".release").mkdir()
-            for name in ("QuestItemQuests/QuestItemQuests/test.lua", "QuestItemQuests/extra.lua"):
+            for name in ("QLens/QLens/test.lua", "QLens/extra.lua"):
                 with zipfile.ZipFile(root / ".release/test.zip", "w") as z:
                     z.writestr(name, "")
                 with patch.object(release, "ROOT", root), patch.object(release, "sources", return_value=({}, {"test.lua"})):
@@ -60,7 +81,7 @@ class ReleaseTests(unittest.TestCase):
              patch.object(release, "release_tag", return_value="v1.4.1"), \
              patch.object(release, "config", return_value=cfg), \
              patch.object(release, "git", return_value="a" * 40), \
-             patch.object(Path, "read_text", return_value="# QuestItemQuests 1.4.1\n"), \
+             patch.object(Path, "read_text", return_value="# QLens 1.4.1\n"), \
              patch.object(release, "request_json", side_effect=[[{"id": 99, "name": "1.60.1", "gameVersionTypeID": 88568}], ValueError("claim already exists")]), \
              patch.object(release.urllib.request, "urlopen") as upload:
             with self.assertRaisesRegex(ValueError, "claim already exists"):

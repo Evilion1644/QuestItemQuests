@@ -14,8 +14,10 @@ import uuid
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-ADDON = "QuestItemQuests"
-SEMVER = r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
+ADDON = "QLens"
+ADDONS = (ADDON, ADDON + "_Guide")
+NUMBER = r"(?:0|[1-9][0-9]*)"
+SEMVER = rf"{NUMBER}\.{NUMBER}\.{NUMBER}(?:-(?:alpha|beta)\.{NUMBER})?"
 CF = "https://wow.curseforge.com/api"
 
 
@@ -49,14 +51,14 @@ def toc(data):
     require(files and len(files) == len(set(files)), "Empty or duplicate TOC entries")
     require(metadata.get("Interface") == config()["interface"], "Expected only Interface 16001")
     require(not any(k.startswith("Interface-") for k in metadata), "Unexpected extra game flavor")
-    require(re.fullmatch(SEMVER, metadata.get("Version", "")), "TOC Version must be X.Y.Z")
+    require(re.fullmatch(SEMVER, metadata.get("Version", "")), "TOC Version must be X.Y.Z or X.Y.Z-alpha.N / X.Y.Z-beta.N")
     return metadata, files
 
 
 def release_tag(version):
     if os.environ.get("GITHUB_REF_TYPE") == "tag":
         tag = os.environ.get("GITHUB_REF_NAME", "")
-        require(re.fullmatch("v" + SEMVER, tag), "Release tag must be exactly vX.Y.Z")
+        require(re.fullmatch("v" + SEMVER, tag), "Invalid release tag (expected vX.Y.Z or vX.Y.Z-alpha.N / vX.Y.Z-beta.N)")
         require(tag == "v" + version, "Tag and TOC Version differ")
         require(git("rev-parse", f"{tag}^{{commit}}") == git("rev-parse", "HEAD"), "Tag does not point to checkout")
         subprocess.run(["git", "merge-base", "--is-ancestor", "HEAD", "origin/main"], cwd=ROOT, check=True)
@@ -78,16 +80,29 @@ def lua_check(data, name):
 
 
 def sources():
-    folder = ROOT / ADDON
-    metadata, files = toc((folder / (ADDON + ".toc")).read_bytes())
-    actual = {p.relative_to(folder).as_posix() for p in folder.rglob("*") if p.is_file()}
-    for name in files:
-        require(name in actual, f"TOC file missing (case sensitive): {name}")
-    for name in sorted(actual):
-        if name.endswith(".lua"):
-            lua_check((folder / name).read_bytes(), name)
-    release_tag(metadata["Version"])
-    return metadata, actual
+    metadata_by_addon, all_files = {}, set()
+    for addon in ADDONS:
+        folder = ROOT / addon
+        metadata, files = toc((folder / (addon + ".toc")).read_bytes())
+        metadata_by_addon[addon] = metadata
+        actual = {p.relative_to(folder).as_posix() for p in folder.rglob("*") if p.is_file()}
+        for name in files:
+            require(name in actual, f"TOC file missing (case sensitive): {addon}/{name}")
+        for name in sorted(actual):
+            if name.endswith(".lua"):
+                lua_check((folder / name).read_bytes(), f"{addon}/{name}")
+        all_files.update(f"{addon}/{name}" for name in actual)
+    main = metadata_by_addon[ADDON]
+    guide = metadata_by_addon[ADDON + "_Guide"]
+    require(guide["Version"] == main["Version"], "Core and Guide versions differ")
+    require(guide.get("Dependencies") == ADDON and guide.get("LoadOnDemand") == "1", "Invalid Guide dependency/loading metadata")
+    release_tag(main["Version"])
+    return main, all_files
+
+
+def release_type(version):
+    require(re.fullmatch(SEMVER, version), "Invalid release version")
+    return version.split("-", 1)[1].split(".", 1)[0] if "-" in version else "release"
 
 
 def prepare():
@@ -98,10 +113,12 @@ def prepare():
     changes = git("log", "--format=%h", revision_range).splitlines()
     paths = git("diff", "--name-only", previous, "HEAD").splitlines() if previous else git("ls-files").splitlines()
     # English templates avoid copying untranslated commit subjects into release notes.
-    lines = [f"# QuestItemQuests {metadata['Version']}", "", "Target: World of Warcraft: Forever 1.60.1 (Interface 16001).", "", "## Changes", ""]
+    lines = [f"# QLens {metadata['Version']}", "", "Target: World of Warcraft: Forever 1.60.1 (Interface 16001).", "", "## Changes", ""]
     categories = [
         (lambda p: p.endswith("QuestItemQuestsData.lua"), "Updated the quest and item reference data."),
         (lambda p: p.endswith("QuestItemQuests.lua"), "Updated the addon implementation."),
+        (lambda p: p.startswith("QLens_Guide/"), "Updated the offline quest guide and reward reference data."),
+        (lambda p: p.endswith(("Locale.lua", "Titles.lua")), "Updated Russian and English localization."),
         (lambda p: p.endswith(".toc"), "Updated addon metadata."),
         (lambda p: p.endswith(".md"), "Updated documentation."),
         (lambda p: p.startswith(("scripts/", "tests/", ".github/")) or p in (".pkgmeta", "release-config.json"), "Updated build and release automation."),
@@ -129,23 +146,26 @@ def verify():
         for name in names:
             path = PurePosixPath(name)
             require(not path.is_absolute() and ".." not in path.parts and "\\" not in name, "Unsafe ZIP path")
-            require(path.parts[0] == ADDON, f"Unexpected ZIP root: {name}")
-            require(not name.startswith(f"{ADDON}/{ADDON}/"), "Double-nested addon")
+            require(path.parts[0] in ADDONS, f"Unexpected ZIP root: {name}")
+            require(len(path.parts) < 2 or path.parts[1] not in ADDONS, "Double-nested addon")
         files = {name for name in names if not name.endswith("/")}
-        expected = {f"{ADDON}/{name}" for name in source_files}
+        expected = source_files
         # Packager can copy the generated changelog into the package root.
         extras = files - expected
         require(all(PurePosixPath(p).parent == PurePosixPath(ADDON) and PurePosixPath(p).name.startswith("CHANGELOG") for p in extras), f"Unexpected packaged files: {extras}")
         require(expected <= files, "ZIP is missing source files")
-        packed_metadata, listed = toc(package.read(f"{ADDON}/{ADDON}.toc"))
-        require(packed_metadata == metadata, "Packaged TOC metadata differs")
+        for addon in ADDONS:
+            toc_path = f"{addon}/{addon}.toc"
+            packed_metadata, listed = toc(package.read(toc_path))
+            source_metadata, _ = toc((ROOT / toc_path).read_bytes())
+            require(packed_metadata == source_metadata, "Packaged TOC metadata differs")
+            require(all(f"{addon}/{name}" in files for name in listed), "ZIP TOC references missing files")
         for name in source_files:
-            packed = package.read(f"{ADDON}/{name}")
-            original = (ROOT / ADDON / name).read_bytes()
+            packed = package.read(name)
+            original = (ROOT / name).read_bytes()
             require(packed.replace(b"\r\n", b"\n") == original.replace(b"\r\n", b"\n"), f"Unexpected content change: {name}")
             if name.endswith(".lua"):
                 lua_check(packed, name)
-        require(all(f"{ADDON}/{name}" in files for name in listed), "ZIP TOC references missing files")
     print(f"ZIP valid: {archive.name}; SHA256 {hashlib.sha256(archive.read_bytes()).hexdigest()}")
     return archive, metadata
 
@@ -182,8 +202,8 @@ def publish():
     require(token and gh_token, "Required repository secret/token missing")
     game_id = forever_version(request_json(CF + "/game/wow/versions", token))
     changelog = (ROOT / ".build/CHANGELOG.md").read_text(encoding="utf-8")
-    require(changelog.startswith(f"# QuestItemQuests {metadata['Version']}\n"), "Changelog version mismatch")
-    payload = {"displayName": tag + "-forever", "gameVersions": [game_id], "releaseType": "release", "changelogType": "markdown", "changelog": changelog}
+    require(changelog.startswith(f"# QLens {metadata['Version']}\n"), "Changelog version mismatch")
+    payload = {"displayName": tag + "-forever", "gameVersions": [game_id], "releaseType": release_type(metadata["Version"]), "changelogType": "markdown", "changelog": changelog}
     boundary = "----qiq" + uuid.uuid4().hex
     body = (f'--{boundary}\r\nContent-Disposition: form-data; name="metadata"\r\nContent-Type: application/json\r\n\r\n'.encode()
             + json.dumps(payload).encode()

@@ -1,7 +1,0 @@
-## Interface: 16001
-## Title: Quest Item Quests
-## Notes: Показывает квесты для предметов заданий и открывает их по Shift+ЛКМ
-## Author: Codex
-## Version: 1.4.1
-QuestItemQuestsData.lua
-QuestItemQuests.lua

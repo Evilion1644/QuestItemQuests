@@ -1,11 +1,17 @@
-package-as: QuestItemQuests
+package-as: QLens
 enable-nolib-creation: no
 enable-toc-creation: no
+plain-copy:
+  - QLens/QuestItemQuestsData.lua
+  - QLens/Titles.lua
+  - QLens_Guide/Data.lua
+  - QLens_Guide/ClassicRewards.lua
 manual-changelog:
   filename: .build/CHANGELOG.md
   markup-type: markdown
 move-folders:
-  QuestItemQuests/QuestItemQuests: QuestItemQuests
+  QLens/QLens_Guide: QLens_Guide
+  QLens/QLens: QLens
 ignore:
   - .github
   - .gitignore
@@ -14,4 +20,6 @@ ignore:
   - docs
   - scripts
   - tests
+  - tools
+  - THIRD_PARTY_NOTICES.md
   - release-config.json

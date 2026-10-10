@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: QLens — Guide
+## Notes: Offline quest browser. Local development snapshot.
+## Notes-ruRU: Офлайн-справочник заданий. Локальная тестовая сборка.
+## Author: Evilion
+## Version: 2.0.0-alpha.6
+## Dependencies: QLens
+## LoadOnDemand: 1
+Data.lua
+ClassicRewards.lua
+Model.lua
+View.lua

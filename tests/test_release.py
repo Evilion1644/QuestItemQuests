@@ -11,9 +11,9 @@ spec.loader.exec_module(release)
 
 
 class ReleaseTests(unittest.TestCase):
-    def test_prerelease_type_is_preserved(self):
-        self.assertEqual(release.release_type("2.0.0-alpha.6"), "alpha")
-        self.assertEqual(release.release_type("2.0.0-beta.1"), "beta")
+    def test_future_uploads_always_use_release_type(self):
+        self.assertEqual(release.release_type("2.0.0-alpha.6"), "release")
+        self.assertEqual(release.release_type("2.0.0-beta.1"), "release")
         self.assertEqual(release.release_type("2.0.0"), "release")
         for version in ("2.0.0-alpha", "2.0.0-alpha.06", "2.0.0-rc.1", "2.0.0-forever", "02.0.0"):
             with self.assertRaises(ValueError):

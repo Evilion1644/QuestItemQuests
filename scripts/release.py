@@ -102,7 +102,9 @@ def sources():
 
 def release_type(version):
     require(re.fullmatch(SEMVER, version), "Invalid release version")
-    return version.split("-", 1)[1].split(".", 1)[0] if "-" in version else "release"
+    # Owner policy: every future CurseForge upload is a Release, irrespective
+    # of a legacy version suffix. Existing uploaded files are not modified.
+    return "release"
 
 
 def prepare():

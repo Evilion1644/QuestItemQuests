@@ -1,6 +1,6 @@
 QIQ = QIQ or {}
 local A = QIQ
-A.version = "2.0.0-alpha.6"
+A.version = "2.0.0"
 A.locale = GetLocale and GetLocale() or "enUS"
 local strings = {
  classicNote={"Classic reference: base XP, money and item choices; not verified for Forever. Current client values take priority. XP can change with level and server rules.","Справочные награды Classic: базовый опыт, деньги и выбор предметов. Для Forever не подтверждены; данные клиента имеют приоритет. Опыт зависит от уровня и правил сервера."},

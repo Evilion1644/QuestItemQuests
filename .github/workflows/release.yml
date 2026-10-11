@@ -39,7 +39,7 @@ jobs:
           # Avoid Packager skipping a main push whose commit also has a tag.
           GITHUB_EVENT_NAME: workflow_dispatch
         with:
-          args: -d -e -l -u -g 1.60.1 -w 0 -a 0 -n "QLens-{project-version}-forever"
+          args: -d -e -l -u -g 1.60.1 -w 0 -a 0 -n "QLens-{project-version}"
       - name: Validate the actual ZIP
         run: python scripts/release.py verify
       - uses: actions/upload-artifact@v4

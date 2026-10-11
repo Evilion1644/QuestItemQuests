@@ -205,7 +205,7 @@ def publish():
     game_id = forever_version(request_json(CF + "/game/wow/versions", token))
     changelog = (ROOT / ".build/CHANGELOG.md").read_text(encoding="utf-8")
     require(changelog.startswith(f"# QLens {metadata['Version']}\n"), "Changelog version mismatch")
-    payload = {"displayName": tag + "-forever", "gameVersions": [game_id], "releaseType": release_type(metadata["Version"]), "changelogType": "markdown", "changelog": changelog}
+    payload = {"displayName": f"{ADDON} {tag}", "gameVersions": [game_id], "releaseType": release_type(metadata["Version"]), "changelogType": "markdown", "changelog": changelog}
     boundary = "----qiq" + uuid.uuid4().hex
     body = (f'--{boundary}\r\nContent-Disposition: form-data; name="metadata"\r\nContent-Type: application/json\r\n\r\n'.encode()
             + json.dumps(payload).encode()

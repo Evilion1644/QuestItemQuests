@@ -1,4 +1,4 @@
-# QLens 2.0.0-alpha.6
+# QLens 2.0.0
 
 Author: Evilion. World of Warcraft: Forever 1.60.1, Interface 16001. Formerly QuestItemQuests.
 
@@ -29,4 +29,4 @@ Classic rewards are explicitly labelled reference data, not verified Forever rew
 
 QuestieDB Forever input is pinned to e0a6eaa86f181ac99262e34126bcd2ed1a1712d6; separate corrections are not applied. See THIRD_PARTY_NOTICES.md and the Guide's CLASSIC-DATA-* files for data provenance and redistribution notes. No network downloads occur during gameplay.
 
-This is an alpha build. Automated tests do not replace in-game verification. Sources, generators and release instructions are in Evilion1644/QuestItemQuests on GitHub.
+This is a release build. Automated tests do not replace in-game verification. Sources, generators and release instructions are in Evilion1644/QuestItemQuests on GitHub.

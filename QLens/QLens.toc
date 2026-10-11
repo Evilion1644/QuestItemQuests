@@ -3,7 +3,7 @@
 ## Notes: Item quests and offline quest guide. Alt-click opens an active quest.
 ## Notes-ruRU: Квесты предметов и офлайн-справочник. Alt+ЛКМ открывает активное задание.
 ## Author: Evilion
-## Version: 2.0.0-alpha.6
+## Version: 2.0.0
 ## SavedVariables: QuestItemQuestsDB
 Locale.lua
 QuestItemQuestsData.lua

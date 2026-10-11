@@ -52,7 +52,7 @@ lua5.1 tools/verify_build.lua
 lua5.1 tests/run.lua
 lua5.1 tests/guide.lua
 python scripts/release.py prepare
-bash /path/to/packager/release.sh -d -e -l -u -g 1.60.1 -w 0 -a 0 -n 'QLens-{project-version}-forever'
+bash /path/to/packager/release.sh -d -e -l -u -g 1.60.1 -w 0 -a 0 -n 'QLens-{project-version}'
 python scripts/release.py verify
 ```
 

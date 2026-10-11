@@ -43,11 +43,11 @@ def pack(name,files):
    entry=zipfile.ZipInfo(path.relative_to(root).as_posix(),date_time=(2026,10,10,0,0,0))
    entry.compress_type=zipfile.ZIP_DEFLATED
    z.writestr(entry,path.read_bytes())
-pack('QLens-2.0.0-alpha.6-LOCAL.zip',runtime)
-pack('QLens-2.0.0-alpha.6-SOURCE.zip',source)
-manifest={'version':'2.0.0-alpha.6','target':'Forever 1.60.1 / 16001','sourceCommit':pin,'profile':'raw-no-corrections','publication':'not authorized; local review only',
+pack('QLens-2.0.0-LOCAL.zip',runtime)
+pack('QLens-2.0.0-SOURCE.zip',source)
+manifest={'version':'2.0.0','target':'Forever 1.60.1 / 16001','sourceCommit':pin,'profile':'raw-no-corrections','publication':'not authorized; local review only',
  'inputs':{name:sha(args.data_source/name) for name in inputs},'runtimeFiles':{x.relative_to(root).as_posix():{'sha256':sha(x),'bytes':x.stat().st_size} for x in runtime},
- 'archives':{f.name:{'sha256':sha(f),'bytes':f.stat().st_size} for f in out.glob('QLens-2.0.0-alpha.6-*.zip')}}
+ 'archives':{f.name:{'sha256':sha(f),'bytes':f.stat().st_size} for f in out.glob('QLens-2.0.0-*.zip')}}
 (out/'BUILD-MANIFEST.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 (out/'BUILD-LOG.txt').write_text('\n'.join(log),encoding='utf-8')
 print('All tests passed; deterministic packages created. Runtime Lua/TOC files: '+str(sum(1 for f in runtime if f.suffix in ['.lua','.toc'])))

@@ -1,17 +1,50 @@
 local A,G=QIQ,QIQ.Guide
 local T=A.T
 local pageSize=10
+local FONT="Fonts\\ARIALN.TTF"
+local function setFont(text,size)
+ if text:SetFont(FONT,size,"")==false then text:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF",size,"") end
+end
+local function border(parent)
+ for _,edge in ipairs({"TOP","BOTTOM","LEFT","RIGHT"}) do
+  local t=parent:CreateTexture(nil,"BORDER"); t:SetColorTexture(.43,.34,.21,.65)
+  if edge=="TOP" or edge=="BOTTOM" then
+   t:SetHeight(1); t:SetPoint(edge.."LEFT",0,0); t:SetPoint(edge.."RIGHT",0,0)
+  else
+   t:SetWidth(1); t:SetPoint("TOP"..edge,0,0); t:SetPoint("BOTTOM"..edge,0,0)
+  end
+ end
+end
 local function fill(parent,r,g,b,a)
  local t=parent:CreateTexture(nil,"BACKGROUND"); t:SetAllPoints(); t:SetColorTexture(r,g,b,a or 1); return t
 end
+-- Baked frame decoration: no OnUpdate, animation or external artwork needed.
+local function wash(parent,x,y,w,h,left,right)
+ for i=0,23 do
+  local f=i/23; local t=parent:CreateTexture(nil,"BACKGROUND",nil,1)
+  t:SetSize(w/24+1,h); t:SetPoint("TOPLEFT",x+i*w/24,y)
+  t:SetColorTexture(left[1]*(1-f)+right[1]*f,left[2]*(1-f)+right[2]*f,left[3]*(1-f)+right[3]*f,1)
+ end
+end
+local function rule(parent,x,y,w,r,g,b)
+ local t=parent:CreateTexture(nil,"ARTWORK"); t:SetSize(w,1); t:SetPoint("TOPLEFT",x,y); t:SetColorTexture(r,g,b,.6); return t
+end
+local function ornament(parent,x,y)
+ rule(parent,x,y,38,.85,.65,.30)
+ rule(parent,x,y-4,20,.52,.39,.22)
+ local t=parent:CreateTexture(nil,"ARTWORK");t:SetSize(4,4);t:SetPoint("TOPLEFT",x+42,y+1);t:SetColorTexture(.96,.76,.40,1)
+end
+local function titleFont(text,size)
+ text:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF",size,"")
+end
 local function label(parent,text,size)
  local f=parent:CreateFontString(nil,"OVERLAY","GameFontHighlight")
- f:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF",size or 15,"")
+ setFont(f,size or 16)
  f:SetJustifyH("LEFT"); f:SetText(text); return f
 end
 local function button(parent,text,width,callback)
  local b=CreateFrame("Button",nil,parent); b:SetSize(width,30)
- b.bg=fill(b,.14,.16,.19); b.text=label(b,text,14); b.text:SetPoint("CENTER")
+ b.bg=fill(b,.135,.12,.095); border(b); b.text=label(b,text,16); b.text:SetPoint("CENTER")
  function b:SetText(v) self.text:SetText(v) end
  b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
  b:SetScript("OnClick",callback); return b
@@ -22,11 +55,30 @@ local function iconFor(id)
 end
 function G:RenderDetail()
  for _,row in ipairs(self.detailPool) do row:Hide() end
- local q=self.selected and self.data.quests[self.selected]
- self.cardTitle:SetText(q and self:Title(self.selected) or T("select"))
- self.cardMeta:SetText(q and (T("level",tostring(q.level or "?"),tostring(q.minLevel or "?")).."  /  "..self:Zone(q.zone).."  /  "..T(self:Status(self.selected))) or T("browseHint"))
- for key,b in pairs(self.tabs) do b.bg:SetColorTexture(key==self.tab and .32 or .12,key==self.tab and .25 or .14,key==self.tab and .12 or .17,1) end
- local rows=q and (self.tab=="rewards" and self:RewardRows(self.selected) or self:Rows(self.selected)) or {}
+ local craft=self.mode=="craft"
+ local q=not craft and self.selected and self.data.quests[self.selected]
+ local recipe=craft and self.crafts[self.recipeSelected]
+ self.cardTitle:SetText(craft and self:CraftTitle(self.recipeSelected) or q and self:Title(self.selected) or T("select"))
+ titleFont(self.cardTitle,24)
+ self.cardTitle:SetTextColor(1,.91,.72)
+ self.cardTitle:SetWidth(640)
+ self.cardKind:SetText(T(craft and "recipeCard" or "questCard"))
+ self.cardKind:SetTextColor(craft and .45 or 1,craft and .85 or .81,craft and .95 or .4)
+ self.cardMeta:SetText(craft and (recipe and A.ProfessionName(recipe.p) or T("craftSelect")) or q and (T("level",tostring(q.level or "?"),tostring(q.minLevel or "?")).."  /  "..self:Zone(q.zone).."  /  "..T(self:Status(self.selected))) or T("browseHint"))
+ local titleHeight=self.cardTitle:GetStringHeight()
+ local metaY=218+math.max(28,titleHeight)+10
+ self.cardMeta:ClearAllPoints(); self.cardMeta:SetPoint("TOPLEFT",345,-metaY)
+ local tabsY=metaY+self.cardMeta:GetStringHeight()+17
+ for i,key in ipairs({"overview","rewards","chain","requirements"}) do
+  self.tabs[key]:ClearAllPoints(); self.tabs[key]:SetPoint("TOPLEFT",345+(i-1)*164,-tabsY)
+ end
+ self.scroll:ClearAllPoints(); self.scroll:SetPoint("TOPLEFT",345,-(tabsY+(craft and 0 or 43))); self.scroll:SetPoint("BOTTOMRIGHT",-35,22)
+ for key,b in pairs(self.tabs) do
+  if craft then b:Hide() else b:Show() end
+  b.bg:SetColorTexture(key==self.tab and .26 or .085,key==self.tab and .205 or .092,key==self.tab and .12 or .095,1)
+  b.text:SetTextColor(key==self.tab and 1 or .71,key==self.tab and .86 or .76,key==self.tab and .54 or .75)
+ end
+ local rows=craft and self:CraftRows(self.recipeSelected) or q and (self.tab=="rewards" and self:RewardRows(self.selected) or self:Rows(self.selected)) or {}
  if self.portrait then
   self.portrait:Hide()
   local npc=q and ((q.finish and q.finish[1] and q.finish[1][1]) or (q.start and q.start[1] and q.start[1][1]))
@@ -42,7 +94,7 @@ function G:RenderDetail()
  local y,n=0,0
  for i,record in ipairs(rows) do
   -- The title and metadata live in a fixed header, not in the scrolling body.
-  if (record.tab or "overview")==self.tab and not (self.tab=="overview" and i<=3) then
+  if craft or ((record.tab or "overview")==self.tab and not (self.tab=="overview" and i<=3)) then
    n=n+1
    local row=self.detailPool[n]
    if not row then
@@ -50,6 +102,7 @@ function G:RenderDetail()
     row.text=label(row,""); row.text:SetWordWrap(true)
     row.icon=row:CreateTexture(nil,"ARTWORK"); row.icon:SetSize(36,36); row.icon:SetPoint("LEFT",10,0)
     row.bg=fill(row,.13,.15,.18)
+    row.rule=row:CreateTexture(nil,"ARTWORK"); row.rule:SetHeight(1); row.rule:SetPoint("BOTTOMLEFT",12,0); row.rule:SetPoint("BOTTOMRIGHT",-12,0); row.rule:SetColorTexture(.60,.45,.23,.5)
     row:SetScript("OnClick",function(s)
      local action=s.action; if not action then return end
      if action.kind=="quest" then G:Open(action.id)
@@ -73,59 +126,128 @@ function G:RenderDetail()
    local icon=record.icon or (itemID and iconFor(itemID))
    if itemID and not icon then icon="Interface\\Icons\\INV_Misc_QuestionMark" end
    if icon then row.icon:SetTexture(icon); row.icon:Show() else row.icon:Hide() end
-   row.bg:SetColorTexture(record.heading and .20 or .11,record.heading and .18 or .13,record.heading and .13 or .16,1)
+   if record.heading then
+    row.bg:SetColorTexture(.19,.155,.10,.35); row.rule:Show()
+   elseif icon or record.action then
+    row.bg:SetColorTexture(.105,.15,.155,.75); row.rule:Hide()
+   else
+    row.bg:SetColorTexture(0,0,0,0); row.rule:Hide()
+   end
    local left=icon and 58 or 12
    row:SetWidth(self.detailWidth); row.text:ClearAllPoints(); row.text:SetPoint("TOPLEFT",left,-10)
    row.text:SetWidth(self.detailWidth-left-16)
-   row.text:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF",record.heading and 18 or 16,"")
-   if record.heading then row.text:SetTextColor(1,.82,.45)
-   elseif record.action then row.text:SetTextColor(.52,.83,1)
-   else row.text:SetTextColor(.94,.94,.90) end
+   setFont(row.text,record.muted and 14 or 17)
+   if record.heading then titleFont(row.text,17) end
+   if record.muted then row.text:SetTextColor(.67,.74,.81)
+   elseif record.heading then row.text:SetTextColor(1,.87,.58)
+   elseif record.action then row.text:SetTextColor(.50,.88,.85)
+   else row.text:SetTextColor(.87,.86,.79) end
    row.text:SetText(record.text)
    local height=math.max(icon and 54 or 38,row.text:GetStringHeight()+20)
-   if record.heading then y=y+12 end
+   if record.heading and n>1 then y=y+14 end
    row:SetHeight(height); row:ClearAllPoints(); row:SetPoint("TOPLEFT",0,-y); y=y+height+5; row:Show()
   end
  end
- if n==0 then self.empty:SetText(q and T("noData") or T("browseHint")); self.empty:Show() else self.empty:Hide() end
+ if n==0 then self.empty:SetText(craft and T("craftEmpty") or q and T("noData") or self.itemID and T("emptyQuestItem") or T("browseHint")); self.empty:Show() else self.empty:Hide() end
  self.content:SetHeight(math.max(y,1)); self.scroll:SetVerticalScroll(0)
- self.back:SetEnabled(self.cursor>1); self.forward:SetEnabled(self.cursor<#self.history)
+ self.back:SetEnabled(not craft and self.cursor>1); self.forward:SetEnabled(not craft and self.cursor<#self.history)
  self:RenderList()
 end
 function G:RenderList()
  local pages=math.max(1,math.ceil(#self.results/pageSize)); self.page=math.max(1,math.min(self.page or 1,pages))
  for i,b in ipairs(self.listPool) do
-  local id=self.results[(self.page-1)*pageSize+i]; b.questID=id
+  local id=self.results[(self.page-1)*pageSize+i]; b.questID=self.mode~="craft" and id or nil; b.recipeID=self.mode=="craft" and id or nil
   if id then
-   local q=self.data.quests[id]
-   b.text:SetText(self:Title(id)); b.meta:SetText((q.level and "["..q.level.."]  " or "")..T(self:Status(id)))
-   b.bg:SetColorTexture(id==self.selected and .27 or .11,id==self.selected and .23 or .13,id==self.selected and .15 or .16,1)
+   if self.mode=="craft" then
+    local r=self.crafts[id]; b.text:SetText(self:CraftTitle(id)); b.meta:SetText(A.ProfessionName(r.p))
+   else
+    local q=self.data.quests[id]
+    b.text:SetText(self:Title(id)); b.meta:SetText((q.level and "["..q.level.."]  " or "")..T(self:Status(id)))
+   end
+   local selected=id==(self.mode=="craft" and self.recipeSelected or self.selected)
+   b.bg:SetColorTexture(selected and .255 or .10,selected and .205 or .105,selected and .12 or .105,selected and 1 or .65)
+   local resultItem=self.mode=="craft" and self.crafts[id].item or 0
+   local texture=self.mode=="craft" and (resultItem>0 and iconFor(resultItem) or "Interface\\Icons\\Trade_Engineering") or "Interface\\Icons\\INV_Misc_Note_01"
+   b.icon:SetTexture(texture or "Interface\\Icons\\Trade_Engineering")
+   if selected then b.marker:Show() else b.marker:Hide() end
+   b.text:SetTextColor(selected and 1 or .92,selected and .9 or .95,selected and .64 or .99)
    b:Show()
   else b:Hide() end
  end
- self.counter:SetText(#self.results==0 and T("noResults") or T("page",#self.results,self.page,pages))
+ self.counter:SetText(#self.results==0 and T("noResults") or T(self.mode=="craft" and "craftPage" or "page",#self.results,self.page,pages))
  self.prev:SetEnabled(self.page>1); self.next:SetEnabled(self.page<pages)
 end
 function G:Refresh()
- self.results=self:Query(self.search:GetText(),self.filter,self.itemID); self:RenderList()
- self.itemLabel:SetText(self.itemID and T("itemFilter",self:EntityName("item",self.itemID)) or T("search"))
+ local craft=self.mode=="craft"
+ self.results=craft and self:CraftQuery(self.search:GetText(),self.itemID) or self:Query(self.search:GetText(),self.filter,self.itemID)
+ self.filterButton:SetEnabled(not craft)
+ self.filterButton:SetText(T(craft and "craftAll" or self.filter))
+ local quests=self:Query("","all",self.itemID)
+ local recipes=self:CraftQuery("",self.itemID)
+ self.modeTabs.quests:SetText(T("questTab",#quests)); self.modeTabs.craft:SetText(T("recipeTab",#recipes))
+ for mode,b in pairs(self.modeTabs) do
+  local selected=(mode=="craft")==craft
+  local teal=mode=="craft"
+  b.bg:SetColorTexture(selected and (teal and .09 or .28) or .09,selected and (teal and .25 or .21) or .11,selected and (teal and .25 or .12) or .12,1)
+  b.marker:SetColorTexture(teal and .35 or 1,teal and .85 or .77,teal and .79 or .35,1)
+  b.text:SetTextColor(selected and 1 or .75,selected and .9 or .82,selected and .62 or .9)
+  if selected then b.marker:Show() else b.marker:Hide() end
+ end
+ self.listHeading:SetText(T(craft and "recipeList" or "questList"))
+ if self.search:GetText()=="" then self.searchHint:Show() else self.searchHint:Hide() end
+ self.itemLabel:SetText(self.itemID and T(craft and "craftMaterial" or "itemFilter",craft and self:CraftItemName(self.itemID) or self:EntityName("item",self.itemID)) or T(craft and "craftSearch" or "search"))
+ if craft then
+  local found=false; for _,id in ipairs(self.results) do if id==self.recipeSelected then found=true; break end end
+  if not found then self.recipeSelected=self.results[1] end
+  self:RenderDetail()
+ else
+  local found=false; for _,id in ipairs(self.results) do if id==self.selected then found=true; break end end
+  if not found then self.selected=self.results[1] end
+  self:RenderDetail()
+ end
+end
+function G:SetMode(mode)
+ self.mode=mode; self.page=1; self.search:SetText(""); self:Refresh(); self:RenderDetail()
 end
 function G:CreateWindow()
  local f=CreateFrame("Frame","QuestItemQuestsGuide",UIParent)
- f:SetSize(1040,720); f:SetPoint("CENTER"); f:SetFrameStrata("DIALOG"); f:SetClampedToScreen(true)
- local scale=math.min(1,(UIParent:GetWidth()-24)/1040,(UIParent:GetHeight()-24)/720)
+ f:SetSize(1040,760); f:SetPoint("CENTER"); f:SetFrameStrata("DIALOG"); f:SetClampedToScreen(true)
+ local scale=math.min(1,(UIParent:GetWidth()-24)/1040,(UIParent:GetHeight()-24)/760)
  if scale>0 then f:SetScale(scale) end
  f:EnableMouse(true); f:SetMovable(true); f:RegisterForDrag("LeftButton")
  f:SetScript("OnDragStart",f.StartMoving); f:SetScript("OnDragStop",f.StopMovingOrSizing)
- fill(f,.055,.065,.08)
- local header=CreateFrame("Frame",nil,f); header:SetPoint("TOPLEFT",1,-1); header:SetSize(1038,54); fill(header,.17,.14,.09)
- local emblem=header:CreateTexture(nil,"ARTWORK"); emblem:SetSize(34,34); emblem:SetPoint("LEFT",16,0); emblem:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
- local title=label(header,T("guideTitle"),21); title:SetPoint("LEFT",62,0); title:SetTextColor(1,.83,.48)
+ fill(f,.045,.062,.066); border(f)
+ wash(f,1,-1,1038,58,{.20,.155,.095},{.045,.10,.115})
+ wash(f,12,-183,308,553,{.10,.105,.10},{.065,.08,.085})
+ wash(f,334,-182,681,553,{.070,.092,.095},{.045,.065,.075})
+ ornament(f,18,-7); ornament(f,18,-748)
+ rule(f,20,-179,990,.49,.39,.23)
+ rule(f,20,-680,292,.49,.39,.23)
+ local header=CreateFrame("Frame",nil,f); header:SetPoint("TOPLEFT",1,-1); header:SetSize(1038,54); fill(header,0,0,0,0)
+ local emblem=header:CreateTexture(nil,"ARTWORK"); emblem:SetSize(38,38); emblem:SetPoint("LEFT",16,0); emblem:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
+ local title=label(header,T("guideTitle"),21); titleFont(title,22); title:SetPoint("LEFT",66,0); title:SetTextColor(1,.86,.56)
+ local sigil=header:CreateTexture(nil,"ARTWORK"); sigil:SetSize(110,48);sigil:SetPoint("RIGHT",-54,0)
+ sigil:SetTexture("Interface\\QuestFrame\\UI-QuestLogTitleHighlight")
+ if sigil.SetVertexColor then sigil:SetVertexColor(.28,.65,.64,.20) end
+ self.modeTabs={}
+ for i,mode in ipairs({"quests","craft"}) do
+  local target=mode
+  local b=button(f,T(mode=="quests" and "quests" or "craft"),240,function() self:SetMode(target) end)
+  b:SetSize(240,36)
+  local icon=b:CreateTexture(nil,"ARTWORK");icon:SetSize(24,24);icon:SetPoint("LEFT",12,0)
+  icon:SetTexture(mode=="quests" and "Interface\\Icons\\INV_Misc_Note_01" or "Interface\\Icons\\Trade_BlackSmithing")
+  b.text:ClearAllPoints();b.text:SetPoint("CENTER",12,0)
+  b:SetPoint("TOPLEFT",20+(i-1)*248,-65)
+  b.marker=b:CreateTexture(nil,"OVERLAY"); b.marker:SetColorTexture(1,.79,.35,1)
+  b.marker:SetHeight(3); b.marker:SetPoint("BOTTOMLEFT",1,0); b.marker:SetPoint("BOTTOMRIGHT",-1,0)
+  self.modeTabs[mode]=b
+ end
  local close=CreateFrame("Button",nil,f,"UIPanelCloseButton"); close:SetPoint("TOPRIGHT",-5,-8); close:SetScript("OnClick",function() f:Hide() end)
  UISpecialFrames=UISpecialFrames or {}; table.insert(UISpecialFrames,"QuestItemQuestsGuide")
  self.frame=f; self.filter="all"; self.tab="overview"; self.page=1; self.listPool={}; self.detailPool={}; self.results={}; self.tabs={}
- self.search=CreateFrame("EditBox",nil,f,"InputBoxTemplate"); self.search:SetSize(560,28); self.search:SetPoint("TOPLEFT",24,-68)
- self.search:SetAutoFocus(false); self.search:SetMaxLetters(160); self.search:SetFont(STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF",16,"")
+ self.search=CreateFrame("EditBox",nil,f,"InputBoxTemplate"); self.search:SetSize(560,28); self.search:SetPoint("TOPLEFT",24,-117)
+ self.search:SetAutoFocus(false); self.search:SetMaxLetters(160); setFont(self.search,17)
+ self.searchHint=label(f,T("searchLabel"),16); self.searchHint:SetPoint("TOPLEFT",30,-124); self.searchHint:SetTextColor(.6,.68,.77)
  self.search:SetScript("OnEscapePressed",function(s) s:ClearFocus() end)
  self.search:SetScript("OnEnterPressed",function(s) s:ClearFocus(); G:Refresh() end)
  self.search:SetScript("OnTextChanged",function()
@@ -134,29 +256,30 @@ function G:CreateWindow()
  end)
  local modes={"all","active","completed","absent"}; local mode=1
  self.filterButton=button(f,T("all"),180,function() mode=mode%#modes+1; self.filter=modes[mode]; self.filterButton:SetText(T(self.filter)); self.page=1; self:Refresh() end)
- self.filterButton:SetPoint("TOPLEFT",608,-66)
- self.clear=button(f,T("clear"),110,function() self.itemID=nil; self.page=1; self.search:SetText(""); self:Refresh() end); self.clear:SetPoint("TOPLEFT",802,-66)
- self.itemLabel=label(f,"",13); self.itemLabel:SetPoint("TOPLEFT",20,-107); self.itemLabel:SetWidth(990)
- local divider=f:CreateTexture(nil,"ARTWORK"); divider:SetColorTexture(.35,.29,.17,1); divider:SetSize(1,550); divider:SetPoint("TOPLEFT",327,-142)
+ self.filterButton:SetPoint("TOPLEFT",608,-115)
+ self.clear=button(f,T("clear"),110,function() self.itemID=nil; self.page=1; self.search:SetText(""); self:Refresh(); self:RenderDetail() end); self.clear:SetPoint("TOPLEFT",802,-115)
+ self.itemLabel=label(f,"",13); self.itemLabel:SetPoint("TOPLEFT",20,-160); self.itemLabel:SetWidth(990)
+ local divider=f:CreateTexture(nil,"ARTWORK"); divider:SetColorTexture(.35,.29,.17,1); divider:SetSize(1,546); divider:SetPoint("TOPLEFT",327,-190)
+ self.listHeading=label(f,"",15); self.listHeading:SetPoint("TOPLEFT",20,-192); self.listHeading:SetTextColor(.78,.68,.46)
  for i=1,pageSize do
-  local b=CreateFrame("Button",nil,f); b:SetSize(292,47); b:SetPoint("TOPLEFT",20,-144-(i-1)*49); b.bg=fill(b,.11,.13,.16)
-  b.text=label(b,"",15); b.text:SetPoint("TOPLEFT",10,-5); b.text:SetWidth(272); b.text:SetWordWrap(false)
-  b.meta=label(b,"",12); b.meta:SetPoint("BOTTOMLEFT",10,6); b.meta:SetTextColor(.72,.69,.59)
-  b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight"); b:SetScript("OnClick",function(s) if s.questID then self:Open(s.questID) end end); self.listPool[i]=b
+  local b=CreateFrame("Button",nil,f); b:SetSize(292,44); b:SetPoint("TOPLEFT",20,-216-(i-1)*46); b.bg=fill(b,.11,.13,.16)
+  b.marker=b:CreateTexture(nil,"OVERLAY"); b.marker:SetColorTexture(1,.79,.35,1); b.marker:SetWidth(3); b.marker:SetPoint("TOPLEFT",0,0); b.marker:SetPoint("BOTTOMLEFT",0,0)
+  b.icon=b:CreateTexture(nil,"ARTWORK");b.icon:SetSize(26,26);b.icon:SetPoint("LEFT",10,0)
+  b.text=label(b,"",17); b.text:SetPoint("TOPLEFT",46,-5); b.text:SetWidth(234); b.text:SetWordWrap(false)
+  b.meta=label(b,"",14); b.meta:SetPoint("BOTTOMLEFT",46,6); b.meta:SetTextColor(.64,.73,.72)
+  b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight"); b:SetScript("OnClick",function(s)
+   if s.recipeID then self.recipeSelected=s.recipeID; self:RenderDetail()
+   elseif s.questID then self:Open(s.questID) end
+  end); self.listPool[i]=b
  end
  self.prev=button(f,T("previous"),136,function() self.page=self.page-1; self:RenderList() end); self.prev:SetPoint("BOTTOMLEFT",20,44)
  self.next=button(f,T("next"),136,function() self.page=self.page+1; self:RenderList() end); self.next:SetPoint("BOTTOMLEFT",176,44)
  self.counter=label(f,"",12); self.counter:SetPoint("BOTTOMLEFT",20,22); self.counter:SetWidth(300)
- self.back=button(f,"<",34,function() if self:Move(-1) then self:CaptureRewards(); self:RenderDetail() end end); self.back:SetPoint("TOPLEFT",345,-139)
- self.forward=button(f,">",34,function() if self:Move(1) then self:CaptureRewards(); self:RenderDetail() end end); self.forward:SetPoint("TOPLEFT",383,-139)
- self.cardTitle=label(f,"",23); self.cardTitle:SetPoint("TOPLEFT",430,-143); self.cardTitle:SetWidth(460)
- local ok,portrait=pcall(CreateFrame,"PlayerModel",nil,f)
- if ok and portrait and portrait.SetCreature then
-  self.portrait=portrait; portrait:SetSize(95,100); portrait:SetPoint("TOPRIGHT",-25,-135)
-  if portrait.SetPortraitZoom then portrait:SetPortraitZoom(1) end
-  if portrait.SetCamDistanceScale then portrait:SetCamDistanceScale(1) end
- end
- self.cardMeta=label(f,"",13); self.cardMeta:SetPoint("TOPLEFT",345,-207); self.cardMeta:SetWidth(655); self.cardMeta:SetTextColor(.78,.75,.65)
+ self.back=button(f,"<",34,function() if self:Move(-1) then self:CaptureRewards(); self:RenderDetail() end end); self.back:SetPoint("TOPLEFT",924,-185)
+ self.forward=button(f,">",34,function() if self:Move(1) then self:CaptureRewards(); self:RenderDetail() end end); self.forward:SetPoint("TOPLEFT",962,-185)
+ self.cardKind=label(f,"",14); self.cardKind:SetPoint("TOPLEFT",345,-192)
+ self.cardTitle=label(f,"",23); self.cardTitle:SetPoint("TOPLEFT",345,-218); self.cardTitle:SetWidth(640)
+ self.cardMeta=label(f,"",16); self.cardMeta:SetPoint("TOPLEFT",345,-207); self.cardMeta:SetWidth(655); self.cardMeta:SetTextColor(.62,.77,.75)
  for i,key in ipairs({"overview","rewards","chain","requirements"}) do
   local tabKey=key
   local b=button(f,T(key=="rewards" and "rewardTitle" or key),157,function() self.tab=tabKey; if tabKey=="rewards" then self:CaptureRewards() end; self:RenderDetail() end)
@@ -184,9 +307,20 @@ end
 function G:Open(id,itemID)
  if id and not self.data.quests[id] then print(T("questUnavailable",tostring(id))); return false end
  if not self.frame then self:CreateWindow() end
+ if id then self.mode="quests" end
+ if itemID then
+  self.filter="all"
+  self.mode=#self:Query("","all",itemID)>0 and "quests" or A.CraftProfessions(itemID) and "craft" or "quests"
+ end
  if itemID then self.itemID=itemID; self.page=1; self.search:SetText("") end
- if id then self:Visit(id) end
  self.frame:Show(); self:Refresh()
- if itemID and self.results[1] then self:Visit(self.results[1]) elseif itemID then self.selected=nil end
+ if id then self:Visit(id) end
+ if self.mode~="craft" then
+  if itemID and self.results[1] then
+   local nextID=self.results[1]
+   for _,qid in ipairs(self.results) do if A.ActiveQuests[qid] then nextID=qid; break end end
+   self:Visit(nextID)
+  elseif itemID then self.selected=nil end
+ end
  self:CaptureRewards(); self:RenderDetail(); return true
 end

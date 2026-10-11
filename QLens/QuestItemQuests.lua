@@ -291,7 +291,8 @@ local function appendTooltip(tooltip, link, itemID, itemName, force)
     local actionableStatic = hasActionableStatic(itemID)
     -- Static actionable relations already establish visibility; avoid a class API call in this hot path.
     local questItem = actionableStatic or isQuestItem(itemID)
-    if not list and not hasStaticRelation(itemID, questItem) and not questItem then
+    local craft = A.CraftProfessions and A.CraftProfessions(itemID)
+    if not list and not hasStaticRelation(itemID, questItem) and not questItem and not craft then
         if name == "" then
             trackedTooltips[tooltip] = { link=link, itemID=itemID, name="", pending=true }
             hideCompanion(tooltip, true)
@@ -304,11 +305,16 @@ local function appendTooltip(tooltip, link, itemID, itemName, force)
     if not companion then return end
     if companion.SetOwner then companion:SetOwner(tooltip, "ANCHOR_NONE") end
     if companion.ClearLines then companion:ClearLines() end
-    companion:AddLine("|cff80c0ff" .. T("heading") .. "|r")
+    companion:AddLine("|cff80c0ffQLens|r")
     local lineCount = 1
+    local hasQuests = list or hasStaticRelation(itemID, questItem) or questItem
+    if hasQuests then
+        companion:AddLine("|cffffd580" .. T("questSection") .. "|r")
+        lineCount=lineCount+1
+    end
     if list then
         for _, q in ipairs(list) do companion:AddDoubleLine(ACTIVE_QUEST_TITLE_COLOR .. q.title .. "|r", A.Settings().key=="off" and "" or "|cffaaaaaa" .. T("openHint", A.KeyName()) .. "|r"); lineCount = lineCount + 1 end
-    elseif static then
+    elseif static and hasStaticRelation(itemID, questItem) then
         local rewardOnly = true
         for _, row in ipairs(static) do if hasActionRelation(row[2]) then rewardOnly = false break end end
         companion:AddLine(rewardOnly and "|cffffd200" .. T("rewardOnly") .. "|r" or "|cffffd200" .. T("inactive") .. "|r")
@@ -318,11 +324,18 @@ local function appendTooltip(tooltip, link, itemID, itemName, force)
             local visible = rewardOnly and isRewardOnly(row[2]) or (not rewardOnly and hasActionRelation(row[2]))
             if visible and not seen[row[1]] then companion:AddLine(INACTIVE_QUEST_TITLE_COLOR .. staticQuestTitle(row[1]) .. "|r"); seen[row[1]] = true; lineCount = lineCount + 1 end
         end
-    else
+    elseif questItem then
         companion:AddLine("|cffffd200" .. T("unknownItem") .. "|r")
         lineCount = lineCount + 1
     end
-    companion:AddLine("|cffaaaaaa" .. T(A.Settings().key=="off" and "disabled" or "guideHint") .. "|r"); lineCount=lineCount+1
+    if craft then
+        companion:AddLine(" ")
+        companion:AddLine("|cff80dce8" .. T("professionSection") .. "|r")
+        companion:AddLine(craft,.9,.94,.98,true)
+        lineCount=lineCount+2+math.max(1,math.ceil(#craft/60))
+    end
+    companion:AddLine(" "); lineCount=lineCount+1
+    companion:AddLine("|cffaaaaaa" .. T(A.Settings().key=="off" and "disabled" or craft and "craftHint" or "guideHint") .. "|r"); lineCount=lineCount+1
     tooltip.__QIQLink = key
     trackedTooltips[tooltip] = { link=link, itemID=itemID, name=name }
     companion:Show()

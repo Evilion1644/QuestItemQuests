@@ -1,4 +1,4 @@
-# QLens 2.0.0
+# QLens 2.1.0
 
 Author: Evilion. World of Warcraft: Forever 1.60.1, Interface 16001. Formerly QuestItemQuests.
 
@@ -30,3 +30,22 @@ Classic rewards are explicitly labelled reference data, not verified Forever rew
 QuestieDB Forever input is pinned to e0a6eaa86f181ac99262e34126bcd2ed1a1712d6; separate corrections are not applied. See THIRD_PARTY_NOTICES.md and the Guide's CLASSIC-DATA-* files for data provenance and redistribution notes. No network downloads occur during gameplay.
 
 This is a release build. Automated tests do not replace in-game verification. Sources, generators and release instructions are in Evilion1644/QuestItemQuests on GitHub.
+
+## Local extension: professions and recipes
+
+Material tooltips list every consuming profession once. Ctrl+Alt+click opens
+the item guide. Persistent Quests (N) and Recipes (N) tabs expose both sections.
+Items with quest links open Quests first, preferring an active quest; other
+materials open Recipes.
+/qlens item 2589 opens Linen Cloth uses; /qlens then Crafting browses all recipes.
+Cards show profession, result and reagent quantities per craft. Clear removes
+the material filter. Search accepts bilingual recipe names, localized profession
+names, spell/material IDs and material names known to the client or quest guide.
+Data: 2506 profession/recipe entries, 593 materials, Forever 1.60.1.69977.
+Presence does not imply learnability. Borrowed Classic skill requirements are
+labelled. Recipes are not restricted to professions known by the character.
+Version 2.1.0 includes the verified profession/recipe data and interface update.
+
+Local UI update: labelled quest/profession tooltip sections, persistent counted
+tabs, Arial Narrow with fallback, bordered controls, higher-contrast selection
+and content spacing that adapts to long titles. In-game visual check pending.

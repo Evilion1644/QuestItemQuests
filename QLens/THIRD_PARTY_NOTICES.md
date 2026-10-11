@@ -20,3 +20,19 @@ Runtime code for the new guide is newly written in this task. Reading other addo
 ClassicRewards.lua is derived from CMaNGOS classic-db ec4f596146be6467ea93c57397858e329e2db852 (ClassicDB_1_12_1_z2815.sql.gz), GPL-3.0. See QLens_Guide/CLASSIC-DATA-LICENSE.txt and CLASSIC-DATA-SOURCE.txt. The transformation is tools/import_classic_rewards.py. Only numeric reward facts and quest/item names are exported; original story/dialogue text is not copied. Base XP is calculated from the database using the documented CMaNGOS XP conversion; it is not current-player XP or confirmed Forever XP.
 
 Generated walkthrough steps summarize the existing objectives, entities and item sources. They are not authored, play-tested guides and do not invent absent mechanics. Classic reference identity is checked by ID and English title, ignoring boundary whitespace and case.
+
+## Local crafting extension — 2026-10-11
+
+CraftIndex.lua and CraftData.lua are generated from LibProfessionDB v1.9.1,
+Copyright (c) 2026 Pimptasty, MIT. License preserved in CRAFT-DATA-LICENSE.txt.
+Source: https://www.curseforge.com/wow/addons/libprofessiondb/files/9095167
+Archive: ProfessionDB-ProfessionDB-v1.9.1.zip
+SHA256: 909cb41720cf6bf6920f1c25c644f89b39ad63087f589c07737e7da943c52379
+Only Data/Forever core recipes and enUS/ruRU names were extracted.
+Pinned recipe build: 1.60.1.69977; 2506 profession/recipe pairs using 593 materials.
+No-material skills are omitted. Shared spells retain each profession association.
+No Vanilla/TBC/Retail recipe data is merged. Borrowed Vanilla required-skill values
+are explicitly marked; no recipe availability is inferred from database presence.
+Crafting.lua, CraftModel.lua and the UI integration are original QLens code.
+The complete external library is not required or installed.
+This local change is not part of the published v2.0.0 release.

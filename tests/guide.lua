@@ -2,6 +2,8 @@ local failures=0
 local function test(name,fn) local ok,err=pcall(fn); if ok then print("PASS "..name) else failures=failures+1; print("FAIL "..name..": "..tostring(err)) end end
 GetLocale=function() return "ruRU" end
 dofile("QLens/Locale.lua")
+dofile("QLens/CraftIndex.lua")
+dofile("QLens/Crafting.lua")
 dofile("QLens/QuestItemQuestsData.lua")
 dofile("QLens/Titles.lua")
 QIQ.ActiveQuests={}; QIQ.Relations=QIQ_ITEM_QUESTS
@@ -14,6 +16,8 @@ C_QuestLog={IsQuestFlaggedCompleted=function(id) return completed[id] or false e
 dofile("QLens_Guide/Data.lua")
 dofile("QLens_Guide/ClassicRewards.lua")
 dofile("QLens_Guide/Model.lua")
+dofile("QLens_Guide/CraftData.lua")
+dofile("QLens_Guide/CraftModel.lua")
 local G=QIQ.Guide
 test("Full guide schema and localized core coverage",function()
  assert(#G.data.ids==4244)
@@ -195,6 +199,77 @@ test("Overview visibly includes every reference item reward for every quest",fun
   local c=G:ClassicReward(id)
   for _,group in ipairs({c.items,c.choices}) do for _,item in ipairs(group) do assert(visible[item.id],id..":"..item.id) end end
  end
+end)
+test("Craft data and reverse professions agree for every material",function()
+ local index,count={},0
+ for key,r in pairs(G.crafts) do
+  count=count+1; assert(r.n.enUS and r.n.ruRU and r.id>0 and r.p>0)
+  for _,v in ipairs(r.r) do
+   assert(v[1]>0 and v[2]>0); index[v[1]]=index[v[1]] or {}; index[v[1]][r.p]=true
+  end
+ end
+ assert(count==2506)
+ for id,profs in pairs(index) do
+  local actual={}; for _,p in ipairs(QIQ_CRAFT_INDEX[id]) do actual[p]=true; assert(profs[p]) end
+  for p in pairs(profs) do assert(actual[p]) end
+ end
+ for id in pairs(QIQ_CRAFT_INDEX) do assert(index[id]) end
+end)
+test("Craft material opens without quest and preserves quantity",function()
+ assert(G:Open(nil,2589)); assert(G.mode=="quests" and #G.results>0)
+ assert(G.modeTabs.quests.text:GetText():find("Задания",1,true))
+ assert(G.modeTabs.craft.text:GetText():find("Рецепты",1,true))
+ G.modeTabs.craft.scripts.OnClick(); assert(G.mode=="craft" and #G.results>0)
+ assert(not G.tabs.overview:IsShown() and not G.filterButton.enabled)
+ for _,key in ipairs(G.results) do
+  local found=false; for _,v in ipairs(G.crafts[key].r) do if v[1]==2589 then found=true end end; assert(found)
+ end
+ local r=G.crafts["197:2963"]; assert(r and r.item==2996)
+ G.recipeSelected="197:2963";G:RenderDetail()
+ local text=""; for _,row in ipairs(G.detailPool) do if row:IsShown() then text=text..row.text:GetText() end end
+ assert(text:find("× 2",1,true) and text:find("Материалы на одно изготовление",1,true))
+ G.modeTabs.quests.scripts.OnClick(); assert(G.mode=="quests" and G.tabs.overview:IsShown())
+ G.modeTabs.craft.scripts.OnClick(); assert(G.mode=="craft")
+ G.clear.scripts.OnClick(); assert(not G.itemID and #G.results==2506)
+ G.search:SetText("ПОРТНЯЖНОЕ"); assert(#G.results>0)
+ for _,key in ipairs(G.results) do assert(G.crafts[key].p==197) end
+ G.search:SetText("unfindablezz"); assert(#G.results==0 and G.recipeSelected==nil and G.empty:IsShown())
+ G.search:SetText("Bolt of Linen Cloth");assert(#G.results>0)
+ G.listPool[1].scripts.OnClick(G.listPool[1]); assert(G.recipeSelected==G.results[1])
+ G.search:SetText(""); G.next.scripts.OnClick(); assert(G.page==2)
+ assert(G:Open(1106) and G.mode=="quests" and G.selected==1106)
+end)
+test("Mixed iron bar opens quests first and both tabs remain reachable",function()
+ G:Open(nil,3575)
+ assert(G.mode=="quests" and #G.results>0 and G.data.quests[G.selected])
+ local count=#G:Query("","all",3575)
+ assert(G.modeTabs.quests.text:GetText()==QIQ.T("questTab",count))
+ G.modeTabs.craft.scripts.OnClick()
+ assert(#G.results>0 and G.itemID==3575 and G.modeTabs.craft.marker:IsShown())
+ G.modeTabs.quests.scripts.OnClick()
+ assert(#G.results==count and G.itemID==3575 and G.modeTabs.quests.marker:IsShown())
+ assert(not G.modeTabs.craft.marker:IsShown())
+end)
+test("Craft-only material still opens recipes",function()
+ local found
+ for item in pairs(QIQ_CRAFT_INDEX) do if #G:Query("","all",item)==0 then found=item; break end end
+ assert(found); G:Open(nil,found); assert(G.mode=="craft" and #G.results>0)
+ G.modeTabs.quests.scripts.OnClick(); assert(#G.results==0 and G.selected==nil and G.empty:IsShown())
+ assert(G.empty:GetText()==QIQ.T("emptyQuestItem"))
+end)
+test("Active item quest preferred and direct quest navigation survives filters",function()
+ local ids=G:Query("","all",3575); assert(#ids>1)
+ local target=ids[#ids]; QIQ.ActiveQuests[target]="Active"
+ G:Open(nil,3575); assert(G.selected==target and G.mode=="quests")
+ QIQ.ActiveQuests[target]=nil
+ G.search:SetText("no possible match"); G:Open(1106); assert(G.selected==1106)
+ G.search:SetText("")
+end)
+test("Craft English locale and unknown materials",function()
+ QIQ.locale="enUS"; assert(QIQ.CraftProfessions(2589):find("Tailoring",1,true))
+ assert(G:CraftTitle("197:2963")=="Bolt of Linen Cloth")
+ assert(#G:CraftQuery("",999999999)==0 and QIQ.CraftProfessions(999999999)==nil)
+ QIQ.locale="ruRU"
 end)
 if failures>0 then error(failures.." guide tests failed") end
 print("guide tests: OK")

@@ -49,6 +49,8 @@ GetLocale=function() return "ruRU" end
 IsShiftKeyDown=function() return false end
 IsControlKeyDown=function() return false end
 dofile("QLens/Locale.lua")
+dofile("QLens/CraftIndex.lua")
+dofile("QLens/Crafting.lua")
 dofile("QLens/QuestItemQuests.lua")
 local API=assert(QuestItemQuests_TestAPI)
 local function companionFor(owner) for _,c in ipairs(companions) do if c.owner==owner then return c end end end
@@ -63,12 +65,12 @@ test("resolver and tooltip relation masks",function()
  active(1)
  for _,id in ipairs({103,104,106,107}) do assert(#assert(API.resolveItem(id,"","mask"))==1,"resolver item "..id) end
  active()
- for _,id in ipairs({103,104,106,107}) do GameTooltip.itemName="mask"; GameTooltip.itemLink="item:"..id; GameTooltip.scripts.OnTooltipSetItem(GameTooltip); local c=companions[#companions]; assert(c.lines[3]:find("Первый квест"),"tooltip item "..id) end
+ for _,id in ipairs({103,104,106,107}) do GameTooltip.itemName="mask"; GameTooltip.itemLink="item:"..id; GameTooltip.scripts.OnTooltipSetItem(GameTooltip); local c=companions[#companions]; assert(table.concat(c.lines," "):find("Первый квест"),"tooltip item "..id) end
 end)
 test("Russian normalized exact objective",function() objectiveByQuest[1]={{type="item",text="Русский предмет: 0/1"}}; active(1); assert(#assert(API.resolveItem(999,"","рУсСкИй ПрЕдМеТ"))==1) end)
 test("journal revision invalidates cache",function() active(1); assert(API.resolveItem(100,"","x")); local r=API.getRevision(); active(); assert(API.getRevision()>r and API.resolveItem(100,"","x")==nil) end)
-test("companion leaves owner lines intact, clamps and refreshes",function() active(); GameTooltip.lines={"foreign"}; GameTooltip.itemName="РУССКИЙ ПРЕДМЕТ"; GameTooltip.itemLink="item:100"; GameTooltip.scripts.OnTooltipSetItem(GameTooltip); assert(#GameTooltip.lines==1 and GameTooltip.lines[1]=="foreign"); local c=companions[#companions]; assert(c and c.shown and c.clamped==true and c.lines[2]:find("активного задания нет")); assert(c.point[1]=="TOPLEFT"); active(1); assert(c.lines[2]:find("Первый квест")); GameTooltip.bottom=10; GameTooltip.top=100; GameTooltip.itemLink="item:103"; GameTooltip.itemName="mask"; active(); GameTooltip.scripts.OnTooltipSetItem(GameTooltip); assert(c.point[1]=="BOTTOMLEFT"); GameTooltip.bottom,GameTooltip.top=nil,nil end)
-test("large companion uses estimated height",function() active(); local c=companionFor(GameTooltip); c.fakeHeight=20; GameTooltip.bottom=180; GameTooltip.top=300; GameTooltip.itemLink="item:114"; GameTooltip.itemName="many"; GameTooltip.scripts.OnTooltipSetItem(GameTooltip); assert(#c.lines==13 and c.point[1]=="BOTTOMLEFT"); c.fakeHeight=nil; GameTooltip.bottom,GameTooltip.top=nil,nil end)
+test("companion leaves owner lines intact, clamps and refreshes",function() active(); GameTooltip.lines={"foreign"}; GameTooltip.itemName="РУССКИЙ ПРЕДМЕТ"; GameTooltip.itemLink="item:100"; GameTooltip.scripts.OnTooltipSetItem(GameTooltip); assert(#GameTooltip.lines==1 and GameTooltip.lines[1]=="foreign"); local c=companions[#companions]; assert(c and c.shown and c.clamped==true and table.concat(c.lines," "):find("активного задания нет")); assert(c.point[1]=="TOPLEFT"); active(1); assert(table.concat(c.lines," "):find("Первый квест")); GameTooltip.bottom=10; GameTooltip.top=100; GameTooltip.itemLink="item:103"; GameTooltip.itemName="mask"; active(); GameTooltip.scripts.OnTooltipSetItem(GameTooltip); assert(c.point[1]=="BOTTOMLEFT"); GameTooltip.bottom,GameTooltip.top=nil,nil end)
+test("large companion uses estimated height",function() active(); local c=companionFor(GameTooltip); c.fakeHeight=20; GameTooltip.bottom=180; GameTooltip.top=300; GameTooltip.itemLink="item:114"; GameTooltip.itemName="many"; GameTooltip.scripts.OnTooltipSetItem(GameTooltip); assert(#c.lines>=13 and c.point[1]=="BOTTOMLEFT"); c.fakeHeight=nil; GameTooltip.bottom,GameTooltip.top=nil,nil end)
 test("modern dynamic tooltip lifecycle prevents resurrection",function()
  assert(type(modernPostCall)=="function")
  local owner=frame("modern"); modernPostCall(owner,{hyperlink="item:100",name="РУССКИЙ ПРЕДМЕТ"}); local c=companionFor(owner)
@@ -82,7 +84,7 @@ test("late GetItemInfo dynamic-only refresh",function()
  ShoppingTooltip1.itemName=nil; ShoppingTooltip1.itemLink="item:112"; function ShoppingTooltip1:GetItem() return self.itemName,self.itemLink end
  local before=#companions; ShoppingTooltip1.scripts.OnTooltipSetItem(ShoppingTooltip1); assert(#companions==before,"pending tooltip rendered too early")
  names[112]="Поздняя цель"; event("GET_ITEM_INFO_RECEIVED",112,true); local c=companions[#companions]
- assert(#companions==before+1 and c.shown and c.lines[2]:find("Второй квест"),"late info did not resolve dynamic objective")
+ assert(#companions==before+1 and c.shown and table.concat(c.lines," "):find("Второй квест"),"late info did not resolve dynamic objective")
 end)
 test("mixed static hides separate reward-only quest",function() active(); GameTooltip.itemName=names[113]; GameTooltip.itemLink="item:113"; GameTooltip.scripts.OnTooltipSetItem(GameTooltip); local c=companionFor(GameTooltip); local all=table.concat(c.lines,"\n"); assert(all:find("Первый квест") and not all:find("Второй квест"),all) end)
 test("actionable static skips class API",function() active(); local before=classCalls; GameTooltip.itemName="mask"; GameTooltip.itemLink="item:103"; GameTooltip.scripts.OnTooltipSetItem(GameTooltip); assert(classCalls==before) end)
@@ -157,7 +159,7 @@ end)
 test("Localized static title and UI",function()
  active(); QIQ.locale="enUS"; QIQ_TITLES={enUS={[1]="First quest"},ruRU={[1]="Первый квест"}}
  GameTooltip.itemName="x"; GameTooltip.itemLink="item:100"; GameTooltip.scripts.OnTooltipSetItem(GameTooltip)
- local c=companionFor(GameTooltip); assert(c.lines[1]:find("Item quests") and c.lines[3]:find("First quest"))
+ local c=companionFor(GameTooltip); assert(table.concat(c.lines," "):find("QUESTS") and table.concat(c.lines," "):find("First quest"))
  QIQ.locale="ruRU"; QIQ_TITLES=nil
 end)
 test("Localization placeholders agree",function()
@@ -173,6 +175,29 @@ test("QLens command alias and renamed Guide loader",function()
  C_AddOns={LoadAddOn=function(name) assert(name=="QLens_Guide"); QIQ.Guide={}; return true end}
  assert(QIQ.LoadGuide())
  QIQ.Guide=oldGuide; C_AddOns=oldAddons
+end)
+test("Craft material tooltip lists every profession without unknown quest warning",function()
+ active()
+ GameTooltip.itemName="Льняной материал"; GameTooltip.itemLink="item:2589"
+ GameTooltip.scripts.OnTooltipSetItem(GameTooltip)
+ local c=companionFor(GameTooltip); assert(c and c.shown)
+ local text=table.concat(c.lines," ")
+ for _,id in ipairs(QIQ_CRAFT_INDEX[2589]) do assert(text:find(QIQ.ProfessionName(id),1,true)) end
+ assert(text:find("Ctrl+Alt",1,true)); assert(not text:find(QIQ.T("unknownItem"),1,true))
+ assert(not QIQ.Guide,"hover must not load full guide")
+ GameTooltip.scripts.OnHide(GameTooltip); assert(not c.shown)
+end)
+test("Craft and active quest coexist in the same tooltip",function()
+ QIQ_CRAFT_INDEX[100]={165,197}; active(1)
+ GameTooltip.itemName="РУССКИЙ ПРЕДМЕТ"; GameTooltip.itemLink="item:100"
+ GameTooltip.scripts.OnTooltipSetItem(GameTooltip)
+ local lines=companionFor(GameTooltip).lines
+ local text=table.concat(lines," ")
+ local questStart=text:find("ЗАДАНИЯ",1,true); local profStart=text:find("ПРОФЕССИИ",1,true)
+ assert(questStart and profStart and questStart<profStart)
+ local gap=false; for _,line in ipairs(lines) do if line==" " then gap=true end end; assert(gap)
+ assert(text:find("Первый квест",1,true) and text:find("Кожевничество",1,true) and text:find("Портняжное дело",1,true))
+ QIQ_CRAFT_INDEX[100]=nil
 end)
 if failures>0 then error(failures.." runtime tests failed") end
 print("runtime tests: OK")

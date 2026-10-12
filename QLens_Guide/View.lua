@@ -54,6 +54,7 @@ local function iconFor(id)
  if GetItemIcon then return GetItemIcon(id) end
 end
 function G:RenderDetail()
+ if self.mode=="prices" then return end
  for _,row in ipairs(self.detailPool) do row:Hide() end
  local craft=self.mode=="craft"
  local q=not craft and self.selected and self.data.quests[self.selected]
@@ -154,6 +155,7 @@ function G:RenderDetail()
  self:RenderList()
 end
 function G:RenderList()
+ if self.mode=="prices" then return end
  local pages=math.max(1,math.ceil(#self.results/pageSize)); self.page=math.max(1,math.min(self.page or 1,pages))
  for i,b in ipairs(self.listPool) do
   local id=self.results[(self.page-1)*pageSize+i]; b.questID=self.mode~="craft" and id or nil; b.recipeID=self.mode=="craft" and id or nil
@@ -177,7 +179,20 @@ function G:RenderList()
  self.counter:SetText(#self.results==0 and T("noResults") or T(self.mode=="craft" and "craftPage" or "page",#self.results,self.page,pages))
  self.prev:SetEnabled(self.page>1); self.next:SetEnabled(self.page<pages)
 end
+function G:RefreshPricePane()
+ local value=A.VendorPrice.GetThreshold()
+ self.priceInputs[1]:SetText(tostring(math.floor(value/10000)))
+ self.priceInputs[2]:SetText(tostring(math.floor(value/100)%100))
+ self.priceInputs[3]:SetText(tostring(value%100))
+ local formatted=value==0 and T("priceGuideInactive") or GetCoinTextureString and GetCoinTextureString(value) or
+  string.format("%d %s  %d %s  %d %s",math.floor(value/10000),T("priceGold"),math.floor(value/100)%100,T("priceSilver"),value%100,T("priceCopper"))
+ self.priceStatus:SetText(T("priceGuideCurrent",formatted))
+end
 function G:Refresh()
+ self:ShowPriceView(self.mode=="prices")
+ if self.mode=="prices" then self:RefreshPricePane() end
+ self:StyleModeTabs()
+ if self.mode=="prices" then return end
  local craft=self.mode=="craft"
  self.results=craft and self:CraftQuery(self.search:GetText(),self.itemID) or self:Query(self.search:GetText(),self.filter,self.itemID)
  self.filterButton:SetEnabled(not craft)
@@ -185,14 +200,6 @@ function G:Refresh()
  local quests=self:Query("","all",self.itemID)
  local recipes=self:CraftQuery("",self.itemID)
  self.modeTabs.quests:SetText(T("questTab",#quests)); self.modeTabs.craft:SetText(T("recipeTab",#recipes))
- for mode,b in pairs(self.modeTabs) do
-  local selected=(mode=="craft")==craft
-  local teal=mode=="craft"
-  b.bg:SetColorTexture(selected and (teal and .09 or .28) or .09,selected and (teal and .25 or .21) or .11,selected and (teal and .25 or .12) or .12,1)
-  b.marker:SetColorTexture(teal and .35 or 1,teal and .85 or .77,teal and .79 or .35,1)
-  b.text:SetTextColor(selected and 1 or .75,selected and .9 or .82,selected and .62 or .9)
-  if selected then b.marker:Show() else b.marker:Hide() end
- end
  self.listHeading:SetText(T(craft and "recipeList" or "questList"))
  if self.search:GetText()=="" then self.searchHint:Show() else self.searchHint:Hide() end
  self.itemLabel:SetText(self.itemID and T(craft and "craftMaterial" or "itemFilter",craft and self:CraftItemName(self.itemID) or self:EntityName("item",self.itemID)) or T(craft and "craftSearch" or "search"))
@@ -206,8 +213,29 @@ function G:Refresh()
   self:RenderDetail()
  end
 end
+function G:ShowPriceView(active)
+ if active then
+  for _,control in ipairs(self.browseControls) do control:Hide() end
+  self.pricePane:Show()
+ else
+  self.pricePane:Hide()
+  for _,control in ipairs(self.browseControls) do control:Show() end
+ end
+end
+function G:StyleModeTabs()
+ for mode,b in pairs(self.modeTabs) do
+  local selected=mode==(self.mode or "quests")
+  local r,g,bl=1,.77,.35
+  if mode=="craft" then r,g,bl=.35,.85,.79 end
+  if mode=="prices" then r,g,bl=1,.55,.38 end
+  b.bg:SetColorTexture(selected and r*.28 or .09,selected and g*.28 or .11,selected and bl*.28 or .12,1)
+  b.marker:SetColorTexture(r,g,bl,1)
+  b.text:SetTextColor(selected and 1 or .75,selected and .9 or .82,selected and .62 or .9)
+  if selected then b.marker:Show() else b.marker:Hide() end
+ end
+end
 function G:SetMode(mode)
- self.mode=mode; self.page=1; self.search:SetText(""); self:Refresh(); self:RenderDetail()
+ self.mode=mode; self.page=1; self.search:SetText(""); self:Refresh(); if mode~="prices" then self:RenderDetail() end
 end
 function G:CreateWindow()
  local f=CreateFrame("Frame","QuestItemQuestsGuide",UIParent)
@@ -230,12 +258,12 @@ function G:CreateWindow()
  sigil:SetTexture("Interface\\QuestFrame\\UI-QuestLogTitleHighlight")
  if sigil.SetVertexColor then sigil:SetVertexColor(.28,.65,.64,.20) end
  self.modeTabs={}
- for i,mode in ipairs({"quests","craft"}) do
+ for i,mode in ipairs({"quests","craft","prices"}) do
   local target=mode
-  local b=button(f,T(mode=="quests" and "quests" or "craft"),240,function() self:SetMode(target) end)
+  local b=button(f,T(mode=="quests" and "quests" or mode=="craft" and "craft" or "priceTab"),240,function() self:SetMode(target) end)
   b:SetSize(240,36)
   local icon=b:CreateTexture(nil,"ARTWORK");icon:SetSize(24,24);icon:SetPoint("LEFT",12,0)
-  icon:SetTexture(mode=="quests" and "Interface\\Icons\\INV_Misc_Note_01" or "Interface\\Icons\\Trade_BlackSmithing")
+  icon:SetTexture(mode=="quests" and "Interface\\Icons\\INV_Misc_Note_01" or mode=="craft" and "Interface\\Icons\\Trade_BlackSmithing" or "Interface\\Icons\\INV_Misc_Coin_01")
   b.text:ClearAllPoints();b.text:SetPoint("CENTER",12,0)
   b:SetPoint("TOPLEFT",20+(i-1)*248,-65)
   b.marker=b:CreateTexture(nil,"OVERLAY"); b.marker:SetColorTexture(1,.79,.35,1)
@@ -288,6 +316,41 @@ function G:CreateWindow()
  self.scroll=CreateFrame("ScrollFrame",nil,f,"UIPanelScrollFrameTemplate"); self.scroll:SetPoint("TOPLEFT",345,-288); self.scroll:SetPoint("BOTTOMRIGHT",-35,22)
  self.detailWidth=650; self.content=CreateFrame("Frame",nil,self.scroll); self.content:SetSize(self.detailWidth,1); self.scroll:SetScrollChild(self.content)
  self.empty=label(self.content,"",17); self.empty:SetPoint("TOPLEFT",15,-20); self.empty:SetWidth(610)
+ local pane=CreateFrame("Frame",nil,f); pane:SetSize(992,620); pane:SetPoint("TOPLEFT",20,-113); pane:EnableMouse(true)
+ pane:SetFrameLevel(f:GetFrameLevel()+20)
+ fill(pane,.045,.062,.066); border(pane)
+ wash(pane,1,-1,990,72,{.18,.13,.09},{.07,.12,.13})
+ local priceIcon=pane:CreateTexture(nil,"ARTWORK"); priceIcon:SetSize(42,42); priceIcon:SetPoint("TOPLEFT",24,-16); priceIcon:SetTexture("Interface\\Icons\\INV_Misc_Coin_01")
+ local priceTitle=label(pane,T("priceGuideTitle"),26); titleFont(priceTitle,26); priceTitle:SetPoint("TOPLEFT",78,-22); priceTitle:SetTextColor(1,.83,.54)
+ local intro=label(pane,T("priceGuideIntro"),18); intro:SetPoint("TOPLEFT",28,-100); intro:SetWidth(915); intro:SetWordWrap(true); intro:SetTextColor(.8,.85,.84)
+ local card=CreateFrame("Frame",nil,pane); card:SetSize(624,245); card:SetPoint("TOPLEFT",28,-180); fill(card,.09,.12,.13,.94); border(card)
+ local cardTitle=label(card,T("priceGuideLimit"),19); cardTitle:SetPoint("TOPLEFT",22,-20); cardTitle:SetTextColor(1,.84,.57)
+ self.priceInputs={}
+ for i,key in ipairs({"priceGold","priceSilver","priceCopper"}) do
+  local x=24+(i-1)*190
+  local caption=label(card,T(key),16); caption:SetPoint("TOPLEFT",x,-66); caption:SetTextColor(.82,.84,.81)
+  local input=CreateFrame("EditBox",nil,card,"InputBoxTemplate"); input:SetSize(146,30); input:SetPoint("TOPLEFT",x+3,-92)
+  input:SetAutoFocus(false); input:SetNumeric(true); input:SetMaxLetters(7); setFont(input,19)
+  input:SetScript("OnEscapePressed",function(s) s:ClearFocus() end)
+  self.priceInputs[i]=input
+ end
+ local save=button(card,T("priceSave"),148,function()
+  local inputs=self.priceInputs
+  local gold=math.min(9999999,tonumber(inputs[1]:GetText()) or 0)
+  local silver=math.min(99,tonumber(inputs[2]:GetText()) or 0)
+  local copper=math.min(99,tonumber(inputs[3]:GetText()) or 0)
+  A.VendorPrice.SetThreshold(gold*10000+silver*100+copper)
+  self:RefreshPricePane()
+ end); save:SetPoint("BOTTOMLEFT",24,22)
+ local disable=button(card,T("priceOff"),148,function() A.VendorPrice.SetThreshold(0); self:RefreshPricePane() end)
+ disable:SetPoint("LEFT",save,"RIGHT",16,0)
+ self.priceStatus=label(pane,"",18); self.priceStatus:SetPoint("TOPLEFT",28,-457); self.priceStatus:SetTextColor(.9,.8,.55)
+ local example=label(pane,T("priceGuideExample"),17); example:SetPoint("TOPLEFT",28,-495); example:SetWidth(900); example:SetWordWrap(true); example:SetTextColor(.66,.76,.8)
+ self.pricePane=pane; pane:Hide()
+ self.browseControls={self.search,self.searchHint,self.filterButton,self.clear,self.itemLabel,divider,self.listHeading,
+  self.prev,self.next,self.counter,self.back,self.forward,self.cardKind,self.cardTitle,self.cardMeta,self.scroll}
+ for _,row in ipairs(self.listPool) do table.insert(self.browseControls,row) end
+ for _,tab in pairs(self.tabs) do table.insert(self.browseControls,tab) end
  f:SetScript("OnHide",function() self.search:ClearFocus() end)
  local events=CreateFrame("Frame")
  for _,event in ipairs({"QUEST_LOG_UPDATE","QUEST_TURNED_IN","GET_ITEM_INFO_RECEIVED"}) do events:RegisterEvent(event) end
@@ -314,6 +377,7 @@ function G:Open(id,itemID)
  end
  if itemID then self.itemID=itemID; self.page=1; self.search:SetText("") end
  self.frame:Show(); self:Refresh()
+ if self.mode=="prices" then return true end
  if id then self:Visit(id) end
  if self.mode~="craft" then
   if itemID and self.results[1] then

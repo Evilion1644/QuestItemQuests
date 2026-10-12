@@ -117,6 +117,10 @@ def prepare():
     # English templates avoid copying untranslated commit subjects into release notes.
     lines = [f"# QLens {metadata['Version']}", "", "Target: World of Warcraft: Forever 1.60.1 (Interface 16001).", "", "## Changes", ""]
     categories = [
+        (lambda p: p in ("QLens/CombatPriority.lua", "QLens/CombatIndex.lua"), "Prioritize relevant unfinished quests in the regular objective tracker during combat and supported ground-object interactions."),
+        (lambda p: p == "QLens/VendorPrice.lua", "Highlight bag and bank stacks whose total vendor sell value is below a configurable threshold."),
+        (lambda p: p == "QLens/MinimapButton.lua", "Add a minimap shortcut to the guide and bag price settings."),
+        (lambda p: p == "QLens_Guide/View.lua", "Add a dedicated Bag Prices tab to the guide."),
         (lambda p: p.endswith("QuestItemQuestsData.lua"), "Updated the quest and item reference data."),
         (lambda p: p.endswith("QuestItemQuests.lua"), "Updated the addon implementation."),
         (lambda p: p.startswith("QLens_Guide/"), "Updated the offline quest guide and reward reference data."),

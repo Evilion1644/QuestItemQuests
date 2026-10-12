@@ -1,4 +1,4 @@
-# QLens 2.1.0
+# QLens 2.2.0
 
 Author: Evilion. World of Warcraft: Forever 1.60.1, Interface 16001. Formerly QuestItemQuests.
 
@@ -17,6 +17,7 @@ To retain the selected shortcut, while WoW is closed copy WTF/Account/<account>/
 - /qlens: open the guide. The legacy /qiq command also works.
 - /qlens quest 1106 or /qlens item 5827: open a quest or related items.
 - /qlens key alt|altshift|off: configure shortcuts.
+- /qlens price: configure the vendor price threshold for entire stacks.
 - /qlens status and /qlens debug 5827: diagnostics.
 
 Shift or Ctrl without Alt are not intercepted. Unrecognized bag clicks delegate to the original handler.
@@ -31,7 +32,7 @@ QuestieDB Forever input is pinned to e0a6eaa86f181ac99262e34126bcd2ed1a1712d6; s
 
 This is a release build. Automated tests do not replace in-game verification. Sources, generators and release instructions are in Evilion1644/QuestItemQuests on GitHub.
 
-## Local extension: professions and recipes
+## Professions and recipes
 
 Material tooltips list every consuming profession once. Ctrl+Alt+click opens
 the item guide. Persistent Quests (N) and Recipes (N) tabs expose both sections.
@@ -44,8 +45,18 @@ names, spell/material IDs and material names known to the client or quest guide.
 Data: 2506 profession/recipe entries, 593 materials, Forever 1.60.1.69977.
 Presence does not imply learnability. Borrowed Classic skill requirements are
 labelled. Recipes are not restricted to professions known by the character.
-Version 2.1.0 includes the verified profession/recipe data and interface update.
+Version 2.2.0 includes the profession/recipe data and interface update.
 
-Local UI update: labelled quest/profession tooltip sections, persistent counted
+UI update: labelled quest/profession tooltip sections, persistent counted
 tabs, Arial Narrow with fallback, bordered controls, higher-contrast selection
-and content spacing that adapts to long titles. In-game visual check pending.
+and content spacing that adapts to long titles.
+
+## Quest priority in the regular objective tracker
+
+When QLens recognizes a creature needed for an unfinished active quest objective, it moves that quest to the top of the regular tracker. The quest remains there after combat. A newly recognized quest takes first place and shifts earlier priorities down. Completed objectives do not trigger a new promotion. Known quest objects and ground pickups are supported when the client exposes enough interaction data. Detection depends on database links and the live quest log.
+
+## Bag prices and minimap button
+
+The guide's third tab, Bag Prices, lets you set a gold/silver/copper threshold. A red outline marks stacks whose total vendor sell value is strictly below the threshold. It uses the whole stack value, not the price per item; items without a known vendor price are not marked. Zero disables highlighting. Standard bags, bank slots, and compatible bag interfaces including Bagnon are supported. Auction prices are not used.
+
+Left-click the QLens minimap button to open the guide or right-click to open Bag Prices. The separate price window remains available through `/qlens price`.

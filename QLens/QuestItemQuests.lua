@@ -605,6 +605,7 @@ SlashCmdList.QUESTITEMQUESTS = function(message)
         if arg~="alt" and arg~="altshift" and arg~="off" then print(T("help")); return end
         A.Settings().key=arg; refreshTracked(); print(T("keySet",A.KeyName())); return
     end
+    if command=="price" then A.VendorPrice.Open(); return end
     if command=="status" then
         local n=0; for _ in pairs(activeQuests) do n=n+1 end
         print(T("statusLine",A.version,n,#objectives,A.KeyName())); return

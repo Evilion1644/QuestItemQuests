@@ -1,8 +1,9 @@
 QIQ = QIQ or {}
 local A = QIQ
-A.version = "2.1.0"
+A.version = "2.2.0"
 A.locale = GetLocale and GetLocale() or "enUS"
 local strings = {
+ combatTarget={"QUEST TARGET","ЦЕЛЬ ЗАДАНИЯ"}, combatHint={"Current objective progress","Текущий прогресс цели"},
  classicNote={"Classic reference: base XP, money and item choices; not verified for Forever. Current client values take priority. XP can change with level and server rules.","Справочные награды Classic: базовый опыт, деньги и выбор предметов. Для Forever не подтверждены; данные клиента имеют приоритет. Опыт зависит от уровня и правил сервера."},
  requiredPayment={"Required payment","Нужно заплатить"}, spellReward={"Reward spell","Заклинание награды"},
  generatedSteps={"Steps assembled from database objectives and sources. They do not cover unrecorded scripts or special mechanics. Check the live objective counter.","Шаги составлены по целям и источникам из базы. Особые механики и события могут быть не описаны. Сверяйтесь со счётчиком задания в журнале."},
@@ -45,7 +46,21 @@ local strings = {
  openFailed={"Could not open quest: %s","не удалось открыть задание: %s"},
  direct={"Verified item ID link","Проверенная связь по ID предмета"}, static={"Database item ID link","Связь по ID предмета из базы"},
  exact={"Exact objective text fallback","Запасное точное совпадение цели"}, delivery={"Delivery text fallback","Запасная эвристика доставки"},
- help={"/qlens: guide; /qlens quest ID; /qlens item ID; /qlens key alt|altshift|off; /qlens status; /qlens debug ID","/qlens: справочник; /qlens quest ID; /qlens item ID; /qlens key alt|altshift|off; /qlens status; /qlens debug ID"},
+ help={"/qlens: guide; /qlens price: vendor price highlight; /qlens quest ID; /qlens item ID; /qlens key alt|altshift|off; /qlens status; /qlens debug ID","/qlens: справочник; /qlens price: подсветка по цене торговцу; /qlens quest ID; /qlens item ID; /qlens key alt|altshift|off; /qlens status; /qlens debug ID"},
+ priceTitle={"Cheap items","Недорогие предметы"},
+ priceNote={"Highlight stacks cheaper than this total vendor price. Zero disables.","Подсветка стопок дешевле общей цены продажи. Ноль отключает."},
+ priceGold={"Gold","Золото"}, priceSilver={"Silver","Серебро"}, priceCopper={"Copper","Медь"},
+ priceSave={"Save","Сохранить"}, priceOff={"Disable","Отключить"},
+ priceSet={"Highlighting stacks cheaper than %d gold %d silver %d copper.","Подсветка стопок дешевле %d зол. %d сер. %d мед."},
+ priceDisabled={"Cheap-item highlight disabled.","Подсветка недорогих предметов отключена."},
+ priceTab={"Bag prices","Цены в сумках"},
+ priceGuideTitle={"Vendor price highlight","Подсветка цены в сумках"},
+ priceGuideIntro={"Items are outlined in red when the vendor price of the entire stack is below the threshold. Works in bags and bank slots.","Предметы выделяются красной рамкой, когда цена продажи всей стопки торговцу ниже порога. Работает в сумках и банке."},
+ priceGuideLimit={"Price threshold","Порог цены"},
+ priceGuideCurrent={"Current threshold: %s","Текущий порог: %s"},
+ priceGuideInactive={"Disabled","Отключено"},
+ priceGuideExample={"Example: at 1 silver, one item worth 87 copper is highlighted; a stack of 10 is not.","Пример: при пороге 1 серебро предмет за 87 медных выделится, а стопка из 10 — нет."},
+ minimapHint={"Left click: guide. Right click: bag prices. Drag: move icon.","ЛКМ: справочник. ПКМ: цены в сумках. Перетащите, чтобы переместить."},
  keySet={"Shortcut: %s. Guide: Ctrl+Alt + left click (unless off).","Сочетание: %s. Справочник: Ctrl+Alt + ЛКМ (кроме off)."},
  statusLine={"%s; active quests: %d; objectives: %d; shortcut: %s","%s; активных заданий: %d; целей: %d; сочетание: %s"},
  invalid={"Enter a positive item/quest ID.","Введите положительный ID предмета/задания."},

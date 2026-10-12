@@ -1,9 +1,9 @@
 ## Interface: 16001
 ## Title: QLens — Guide
-## Notes: Offline quest browser. Local development snapshot.
-## Notes-ruRU: Офлайн-справочник заданий. Локальная тестовая сборка.
+## Notes: Offline quest and recipe guide with bag price settings.
+## Notes-ruRU: Офлайн-справочник заданий и рецептов с настройкой цен в сумках.
 ## Author: Evilion
-## Version: 2.1.0
+## Version: 2.2.0
 ## Dependencies: QLens
 ## LoadOnDemand: 1
 Data.lua

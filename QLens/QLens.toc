@@ -1,13 +1,18 @@
 ## Interface: 16001
 ## Title: QLens
+## IconTexture: Interface\Icons\INV_Misc_Spyglass_03
 ## Notes: Item quests and offline quest guide. Alt-click opens an active quest.
 ## Notes-ruRU: Квесты предметов и офлайн-справочник. Alt+ЛКМ открывает активное задание.
 ## Author: Evilion
-## Version: 2.1.0
+## Version: 2.2.0
 ## SavedVariables: QuestItemQuestsDB
 Locale.lua
+MinimapButton.lua
+VendorPrice.lua
 CraftIndex.lua
 Crafting.lua
+CombatIndex.lua
+CombatPriority.lua
 QuestItemQuestsData.lua
 Titles.lua
 QuestItemQuests.lua

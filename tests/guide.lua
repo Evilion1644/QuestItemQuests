@@ -160,6 +160,7 @@ local function frame()
  function f:SetScript(k,v) self.scripts[k]=v end
  function f:SetSize(w,h) self.width=w; self.height=h end
  function f:GetWidth() return self.width end; function f:GetHeight() return self.height end
+ function f:GetFrameLevel() return 1 end
  function f:SetWidth(v) self.width=v end; function f:SetHeight(v) self.height=v end
  function f:Show() self.shown=true end; function f:Hide() self.shown=false; if self.scripts.OnHide then self.scripts.OnHide(self) end end
  function f:IsShown() return self.shown end
@@ -169,7 +170,7 @@ local function frame()
  function f:SetVerticalScroll(v) self.offset=v end; function f:GetVerticalScroll() return self.offset end
  function f:SetScrollChild(v) self.child=v end
  function f:SetEnabled(v) self.enabled=v end
- for _,name in ipairs({"SetTexCoord","SetFont","SetTexture","SetPoint","ClearAllPoints","SetFrameStrata","SetClampedToScreen","SetScale","EnableMouse","SetMovable","RegisterForDrag","StartMoving","StopMovingOrSizing","RegisterEvent","ClearFocus","SetAutoFocus","SetMaxLetters","SetWordWrap","SetFontObject","SetTextColor","SetJustifyH","SetAllPoints","SetColorTexture","SetHighlightTexture"}) do f[name]=function() end end
+ for _,name in ipairs({"SetTexCoord","SetFont","SetTexture","SetPoint","ClearAllPoints","SetFrameStrata","SetFrameLevel","SetClampedToScreen","SetScale","EnableMouse","SetMovable","RegisterForDrag","StartMoving","StopMovingOrSizing","RegisterEvent","ClearFocus","SetAutoFocus","SetNumeric","SetMaxLetters","SetWordWrap","SetFontObject","SetTextColor","SetJustifyH","SetAllPoints","SetColorTexture","SetHighlightTexture"}) do f[name]=function() end end
  function f:CreateFontString() return frame() end; function f:CreateTexture() return frame() end
  return f
 end

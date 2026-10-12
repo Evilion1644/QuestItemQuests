@@ -1,6 +1,6 @@
 QIQ = QIQ or {}
 local A = QIQ
-A.version = "2.2.0"
+A.version = "2.3.0"
 A.locale = GetLocale and GetLocale() or "enUS"
 local strings = {
  combatTarget={"QUEST TARGET","ЦЕЛЬ ЗАДАНИЯ"}, combatHint={"Current objective progress","Текущий прогресс цели"},

@@ -3,7 +3,7 @@
 ## Notes: Offline quest and recipe guide with bag price settings.
 ## Notes-ruRU: Офлайн-справочник заданий и рецептов с настройкой цен в сумках.
 ## Author: Evilion
-## Version: 2.2.0
+## Version: 2.3.0
 ## Dependencies: QLens
 ## LoadOnDemand: 1
 Data.lua

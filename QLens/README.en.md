@@ -1,4 +1,4 @@
-# QLens 2.2.0
+# QLens 2.3.0
 
 Author: Evilion. World of Warcraft: Forever 1.60.1, Interface 16001. Formerly QuestItemQuests.
 
@@ -45,7 +45,7 @@ names, spell/material IDs and material names known to the client or quest guide.
 Data: 2506 profession/recipe entries, 593 materials, Forever 1.60.1.69977.
 Presence does not imply learnability. Borrowed Classic skill requirements are
 labelled. Recipes are not restricted to professions known by the character.
-Version 2.2.0 includes the profession/recipe data and interface update.
+Version 2.3.0 includes the profession/recipe data and interface update.
 
 UI update: labelled quest/profession tooltip sections, persistent counted
 tabs, Arial Narrow with fallback, bordered controls, higher-contrast selection
@@ -60,3 +60,7 @@ When QLens recognizes a creature needed for an unfinished active quest objective
 The guide's third tab, Bag Prices, lets you set a gold/silver/copper threshold. A red outline marks stacks whose total vendor sell value is strictly below the threshold. It uses the whole stack value, not the price per item; items without a known vendor price are not marked. Zero disables highlighting. Standard bags, bank slots, and compatible bag interfaces including Bagnon are supported. Auction prices are not used.
 
 Left-click the QLens minimap button to open the guide or right-click to open Bag Prices. The separate price window remains available through `/qlens price`.
+
+## Party quests on the world map
+
+Hover a quest marker on the world map to see whether each party member has that quest. Unknown and offline statuses are shown separately. Solo tooltips stay unchanged. Party members do not need QLens: status comes from the game client.

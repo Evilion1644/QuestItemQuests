@@ -148,12 +148,136 @@ local function isCreatureStillNeeded(creature, questID)
     return false
 end
 
-local function promoteTarget(guid)
+local function activeQuest(id)
+    if C_QuestLog and type(C_QuestLog.IsOnQuest) == "function" then
+        local ok, active = pcall(C_QuestLog.IsOnQuest, id)
+        if ok and type(active) == "boolean" then return active end
+    end
+    return A.ActiveQuests and A.ActiveQuests[id]
+end
+
+local function activeIDs()
+    local api = C_QuestLog or {}
+    local ids, seen = {}, {}
+    local function add(id)
+        if id and id > 0 and not seen[id] then seen[id]=true; ids[#ids+1]=id end
+    end
+    -- Watch IDs work even when the journal category is collapsed.
+    if api.GetNumQuestWatches and api.GetQuestIDForQuestWatchIndex then
+        for i=1,api.GetNumQuestWatches() do add(api.GetQuestIDForQuestWatchIndex(i)) end
+    end
+    if api.GetNumQuestLogEntries and api.GetInfo then
+        for i=1,api.GetNumQuestLogEntries() do
+            local info=api.GetInfo(i)
+            if info and not info.isHeader then add(info.questID) end
+        end
+    end
+    for id in pairs(A.ActiveQuests or {}) do add(id) end
+    return ids
+end
+
+local function promoteLiveTarget(name)
+    if type(name) ~= "string" or name == "" then return false end
+    local api = C_QuestLog
+    if not api or type(api.GetQuestObjectives) ~= "function" then return false end
+    local normalize = A.Normalize or string.lower
+    name = normalize(name)
+    for _, id in ipairs(activeIDs()) do
+        local ok, objectives = pcall(api.GetQuestObjectives, id)
+        if ok and type(objectives)=="table" then
+            for _, objective in ipairs(objectives) do
+                local kind = tostring(objective.type or ""):lower()
+                if (kind == "monster" or kind == "kill") and objectiveIncomplete(objective) then
+                    local text = normalize(objective.text or "")
+                    local first, last = text:find(name, 1, true)
+                    local before = first and (first == 1 or text:sub(first-1,first-1):match("[%s%p]"))
+                    local after = last and (last == #text or text:sub(last+1,last+1):match("[%s%p]"))
+                    if before and after then setPriority(id); return true end
+                end
+            end
+        end
+    end
+    return false
+end
+
+local function tooltipText(text)
+    text = tostring(text or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+    text = text:gsub("|T.-|t", ""):gsub("|A.-|a", "")
+    return (A.Normalize or string.lower)(text)
+end
+
+local function promoteTooltip(guid)
+    if not (C_TooltipInfo and type(C_TooltipInfo.GetUnit)=="function") then return false end
+    local unit
+    for _, token in ipairs({"target", "mouseover"}) do
+        if UnitGUID(token)==guid then unit=token; break end
+    end
+    if not unit then return false end
+    local ok, data=pcall(C_TooltipInfo.GetUnit,unit)
+    if not ok or type(data)~="table" or type(data.lines)~="table" then return false end
+    local api=C_QuestLog or {}
+    if not api.GetQuestObjectives then return false end
+    for _, id in ipairs(activeIDs()) do
+        local title=api.GetTitleForQuestID and api.GetTitleForQuestID(id)
+        title=title or (A.ActiveQuests and A.ActiveQuests[id])
+        if type(title)=="string" then
+            local objectives=api.GetQuestObjectives(id)
+            local start
+            for i,line in ipairs(data.lines) do
+                if tooltipText(line.leftText)==tooltipText(title) then start=i; break end
+            end
+            if start then
+                -- Require both our quest title and an unfinished objective.
+                -- A title alone could belong to a party member's progress.
+                for i=start+1,math.min(start+1+#(objectives or {}),#data.lines) do
+                    local line=tooltipText(data.lines[i].leftText)
+                    for _, objective in ipairs(objectives or {}) do
+                        if objectiveIncomplete(objective) and line~="" and line==tooltipText(objective.text) then
+                            setPriority(id); return true
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return false
+end
+
+local progress = {}
+local function checkProgress(promote)
+    if not (C_QuestLog and C_QuestLog.GetQuestObjectives) then return end
+    local nextProgress = {}
+    for _, id in ipairs(activeIDs()) do
+        local ok, objectives = pcall(C_QuestLog.GetQuestObjectives,id)
+        if ok and type(objectives)=="table" then
+            local snapshot={}
+            for i, objective in ipairs(objectives) do
+                local text=tostring(objective.text or "")
+                local fulfilled=tonumber(objective.numFulfilled) or tonumber(text:match("(%d+)%s*/%s*%d+%s*$"))
+                local key=tostring(objective.type)..":"..text:gsub("%d+%s*/%s*%d+", "#/#")
+                snapshot[i]={key=key, count=fulfilled, finished=objective.finished==true}
+                local old=progress[id] and progress[id][i]
+                if promote and old and old.key==key and
+                   ((fulfilled and old.count and fulfilled>old.count) or (not old.finished and objective.finished==true)) then
+                    setPriority(id)
+                end
+            end
+            nextProgress[id]=snapshot
+        else nextProgress[id]=progress[id] end -- transient API failure is not removal
+    end
+    progress=nextProgress
+end
+
+local function promoteTarget(guid, name)
     local creature = creatureID(guid)
+    if not creature then return end
+    if not name and UnitGUID and UnitName and UnitGUID("target") == guid then name=UnitName("target") end
+    if promoteLiveTarget(name) then return end
+    if promoteTooltip(guid) then return end
     local quests = creature and QIQ_COMBAT_OBJECTIVES and QIQ_COMBAT_OBJECTIVES[creature]
-    if not quests or not A.ActiveQuests then return end
+    if not quests then return end
     for _, questID in ipairs(quests) do
-        if A.ActiveQuests[questID] and isCreatureStillNeeded(creature, questID) then
+        if activeQuest(questID) and isCreatureStillNeeded(creature, questID) then
             setPriority(questID)
             return
         end
@@ -230,7 +354,7 @@ local function promoteGroundObject(objectID)
     local quests = QIQ_GROUND_OBJECTIVE_DETAILS and QIQ_GROUND_OBJECTIVE_DETAILS[objectID]
     if not quests or not A.ActiveQuests then return false end
     for questID in pairs(quests) do
-        if A.ActiveQuests[questID] and isGroundStillNeeded(objectID, questID) then
+        if activeQuest(questID) and isGroundStillNeeded(objectID, questID) then
             setPriority(questID)
             return true
         end
@@ -240,7 +364,7 @@ end
 
 local function promoteGroundSourceItem(itemID)
     for _, questID in ipairs(QIQ_GROUND_SOURCE_ITEMS[itemID] or {}) do
-        if A.ActiveQuests and A.ActiveQuests[questID] then
+        if activeQuest(questID) then
             for _, objectID in ipairs(QIQ_GROUND_QUEST_OBJECTS[questID] or {}) do
                 if isGroundStillNeeded(objectID, questID) then
                     setPriority(questID)
@@ -266,7 +390,7 @@ local function promoteGroundName(name)
     for itemID, quests in pairs(QIQ_GROUND_SOURCE_ITEMS or {}) do
         local active = false
         for _, questID in ipairs(quests) do
-            if A.ActiveQuests and A.ActiveQuests[questID] then active = true; break end
+            if activeQuest(questID) then active = true; break end
         end
         if active then
             local spellName
@@ -306,7 +430,7 @@ local function prunePriorities()
     if not A.ActiveQuests then return end
     local changed = false
     for i = #priorityQuestIDs, 1, -1 do
-        if not A.ActiveQuests[priorityQuestIDs[i]] then
+        if not activeQuest(priorityQuestIDs[i]) then
             table.remove(priorityQuestIDs, i)
             changed = true
         end
@@ -319,12 +443,23 @@ for _, event in ipairs({
     "ADDON_LOADED", "PLAYER_LOGIN", "COMBAT_LOG_EVENT_UNFILTERED",
     "PLAYER_REGEN_DISABLED", "PLAYER_TARGET_CHANGED",
     "QUEST_LOG_UPDATE", "UNIT_SPELLCAST_SENT", "UNIT_SPELLCAST_START",
-    "LOOT_READY", "LOOT_OPENED",
+    "LOOT_READY", "LOOT_OPENED", "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_ENABLED",
 }) do frame:RegisterEvent(event) end
 
 frame:SetScript("OnEvent", function(_, event, ...)
     if event == "ADDON_LOADED" or event == "PLAYER_LOGIN" then
         installSortHook()
+        if event == "PLAYER_LOGIN" then checkProgress(false) end
+        return
+    end
+    if event == "PLAYER_ENTERING_WORLD" then checkProgress(false); installSortHook(); return end
+    if event == "PLAYER_REGEN_ENABLED" then installSortHook(); markDirty(); return end
+    if event == "QUEST_LOG_UPDATE" then
+        local function refresh()
+            checkProgress(not A.FeatureEnabled or A.FeatureEnabled("combatPriority"))
+            prunePriorities()
+        end
+        if C_Timer and C_Timer.After then C_Timer.After(0,refresh) else refresh() end
         return
     end
     if A.FeatureEnabled and not A.FeatureEnabled("combatPriority") then return end
@@ -349,19 +484,12 @@ frame:SetScript("OnEvent", function(_, event, ...)
         promoteLootSource()
         return
     end
-    if event == "QUEST_LOG_UPDATE" then
-        -- The core addon rebuilds ActiveQuests on this same event.
-        if C_Timer and C_Timer.After then
-            C_Timer.After(0, prunePriorities)
-        end
-        return
-    end
-    local _, subevent, _, sourceGUID, _, _, _, destGUID = CombatLogGetCurrentEventInfo()
-    if sourceGUID ~= UnitGUID("player") then return end
+    local _, subevent, _, sourceGUID, _, _, _, destGUID, destName = CombatLogGetCurrentEventInfo()
+    if sourceGUID ~= UnitGUID("player") and sourceGUID ~= UnitGUID("pet") then return end
     if subevent == "SWING_DAMAGE" or subevent == "RANGE_DAMAGE" or
        subevent == "SPELL_DAMAGE" or subevent == "SPELL_PERIODIC_DAMAGE" or
        subevent == "DAMAGE_SHIELD" then
-        promoteTarget(destGUID)
+        promoteTarget(destGUID, destName)
     end
 end)
 

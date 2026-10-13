@@ -1,6 +1,6 @@
 local A = QIQ
 local defaults = { zoneTracking=true, combatPriority=true, partyQuests=true,
-    itemTooltips=true, craftHints=true, itemShortcuts=true, vendorHighlight=true, minimapButton=true }
+    itemTooltips=true, craftHints=true, itemShortcuts=true, vendorHighlight=true, minimapButton=true, questSparkles=true }
 function A.FeatureEnabled(key)
     local options = A.Settings().features
     if type(options) == "table" and options[key] ~= nil then return options[key] == true end
@@ -11,6 +11,7 @@ function A.SetFeature(key, enabled)
     local db = A.Settings()
     if type(db.features) ~= "table" then db.features = {} end
     db.features[key] = not not enabled
+    if key == "questSparkles" and A.QuestSparkles then A.QuestSparkles.Schedule() end
     if A.ZoneTracking then A.ZoneTracking.Schedule() end
     if A.CombatPriority and A.CombatPriority.Reset then A.CombatPriority.Reset() end
     if A.VendorPrice then A.VendorPrice.Refresh() end

@@ -1,6 +1,9 @@
 local A, G = QIQ, QIQ.Guide
 local ru = A.locale == "ruRU"
 local options = {
+ {"questSparkles", "Искрение квестовых предметов", "Quest item sparkles",
+  "Искры вместо контуров. При отключении вернём прежние настройки; для исчезновения искр может понадобиться перезапуск игры.",
+  "Sparkles replace outlines. Disabling restores previous settings; removing the effect may require a game restart."},
  {"zoneTracking", "Задания рядом со мной", "Quests in my current zone",
   "Ставит галочки по месту целей и сдачи. При отключении возвращает прежний список.",
   "Tracks quests by objective and turn-in location. Disabling restores your previous watch list."},
@@ -42,13 +45,17 @@ function G:CreateSettingsPane(parent)
     text(pane, ru and "Изменения сохраняются сразу. В бою список заданий обновится после его окончания."
         or "Changes are saved immediately. During combat, quest tracking changes wait until combat ends.", 15, 24, -54, 938)
     self.featureChecks = {}
+    local scroll=CreateFrame("ScrollFrame",nil,pane,"UIPanelScrollFrameTemplate")
+    scroll:SetPoint("TOPLEFT",0,-88); scroll:SetPoint("BOTTOMRIGHT",-28,66)
+    local content=CreateFrame("Frame",nil,scroll); content:SetSize(950,#options*72)
+    scroll:SetScrollChild(content)
     for i, option in ipairs(options) do
         local key = option[1]
-        local y = -88-(i-1)*58
-        local check = CreateFrame("CheckButton", nil, pane, "UICheckButtonTemplate")
+        local y = -(i-1)*72
+        local check = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
         check:SetSize(30,30); check:SetPoint("TOPLEFT",22,y)
-        text(pane, option[ru and 2 or 3], 18, 61, y-3, 900):SetTextColor(1,.88,.62)
-        text(pane, option[ru and 4 or 5], 14, 61, y-27, 900):SetTextColor(.75,.81,.82)
+        text(content, option[ru and 2 or 3], 18, 61, y-3, 875):SetTextColor(1,.88,.62)
+        text(content, option[ru and 4 or 5], 14, 61, y-27, 875):SetTextColor(.75,.81,.82)
         check:SetScript("OnClick", function(s) A.SetFeature(key, s:GetChecked()); self:RefreshSettingsPane() end)
         self.featureChecks[key] = check
     end

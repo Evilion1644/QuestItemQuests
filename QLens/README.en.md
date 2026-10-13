@@ -1,4 +1,4 @@
-# QLens 2.4.0
+# QLens 2.5.0
 
 Author: Evilion. World of Warcraft: Forever 1.60.1, Interface 16001. Formerly QuestItemQuests.
 
@@ -45,7 +45,7 @@ names, spell/material IDs and material names known to the client or quest guide.
 Data: 2506 profession/recipe entries, 593 materials, Forever 1.60.1.69977.
 Presence does not imply learnability. Borrowed Classic skill requirements are
 labelled. Recipes are not restricted to professions known by the character.
-Version 2.4.0 includes the profession/recipe data and interface update.
+Version 2.5.0 includes the profession/recipe data and interface update.
 
 UI update: labelled quest/profession tooltip sections, persistent counted
 tabs, Arial Narrow with fallback, bordered controls, higher-contrast selection
@@ -68,3 +68,5 @@ Hover a quest marker on the world map to see whether each party member has that 
 ## Settings and zone quest tracking
 
 The Settings tab provides eight feature switches. Automatic zone tracking is enabled by default and uses the client quest destination, ignoring intermediate route waypoints. Reference data supplements multiple objectives and acts as fallback. Unknown locations preserve the current watch state. Manual changes last until the zone changes; disabling restores the original watch list. Changes wait until combat ends. Use /qlenszone for diagnostics.
+
+Quest item sparkles are enabled by default. Disable them in Settings; your choice persists across updates. Sparkles replace outlines, and disabling restores your previous graphics settings. Removing the effect may require restarting the game. Quest priority uses live objectives and progress changes, including quests without reference IDs.

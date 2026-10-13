@@ -40,6 +40,7 @@ local function onQuest(unit, questID)
 end
 
 local function append(tooltip)
+    if QIQ.FeatureEnabled and not QIQ.FeatureEnabled("partyQuests") then return end
     if tooltip.qlensPartyAdded or not WorldMapFrame or not WorldMapFrame:IsShown() then return end
     if not IsInGroup or not IsInGroup() then return end
     local questID = mapQuest(tooltip)

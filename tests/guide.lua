@@ -163,6 +163,9 @@ local function frame()
  function f:GetFrameLevel() return 1 end
  function f:SetWidth(v) self.width=v end; function f:SetHeight(v) self.height=v end
  function f:Show() self.shown=true end; function f:Hide() self.shown=false; if self.scripts.OnHide then self.scripts.OnHide(self) end end
+ function f:SetShown(v) self.shown=v end
+ function f:SetChecked(v) self.checked=v end
+ function f:GetChecked() return self.checked end
  function f:IsShown() return self.shown end
  function f:SetText(v) self.text=v; if self.scripts.OnTextChanged then self.scripts.OnTextChanged(self) end end
  function f:GetText() return self.text end
@@ -178,7 +181,9 @@ CreateFrame=function() return frame() end
 UIParent=frame(); UIParent:SetSize(1920,1080)
 GameTooltip=frame(); C_Timer={After=function(_,fn) fn() end}
 QIQ.OpenActiveQuest=function() return true end
+dofile("QLens/Features.lua")
 dofile("QLens_Guide/View.lua")
+dofile("QLens_Guide/SettingsView.lua")
 test("Guide UI open, search, page, history, item filter and clear",function()
  assert(G:Open(1106)); assert(G.frame:IsShown() and G.selected==1106)
  G.search:SetText("1106"); assert(#G.results==1)
@@ -274,3 +279,14 @@ test("Craft English locale and unknown materials",function()
 end)
 if failures>0 then error(failures.." guide tests failed") end
 print("guide tests: OK")
+
+QIQ.VendorPrice={GetThreshold=function() return 0 end,Refresh=function() end}
+G:SetMode("settings")
+assert(G.settingsPane:IsShown() and not G.pricePane:IsShown() and not G.search:IsShown())
+assert(G.featureChecks.zoneTracking:GetChecked())
+G.featureChecks.zoneTracking:SetChecked(false)
+G.featureChecks.zoneTracking.scripts.OnClick(G.featureChecks.zoneTracking)
+assert(not QIQ.FeatureEnabled("zoneTracking"))
+G:SetMode("prices"); assert(G.pricePane:IsShown() and not G.settingsPane:IsShown())
+G:SetMode("quests"); assert(not G.settingsPane:IsShown() and G.search:IsShown())
+print("PASS settings tab switching and persisted checkbox")

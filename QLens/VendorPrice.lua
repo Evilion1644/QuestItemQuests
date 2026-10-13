@@ -101,7 +101,7 @@ end
 
 local function updateButton(button)
     local bag, slot = bagAndSlot(button)
-    if not bag or threshold() == 0 then showBorder(button, false); return end
+    if not bag or (A.FeatureEnabled and not A.FeatureEnabled("vendorHighlight")) or threshold() == 0 then showBorder(button, false); return end
     local link, count = itemData(button, bag, slot)
     if not link then showBorder(button, false); return end
     local getInfo = C_Item and C_Item.GetItemInfo or GetItemInfo

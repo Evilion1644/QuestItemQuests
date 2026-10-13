@@ -1,8 +1,9 @@
 QIQ = QIQ or {}
 local A = QIQ
-A.version = "2.3.0"
+A.version = "2.4.0"
 A.locale = GetLocale and GetLocale() or "enUS"
 local strings = {
+ settingsTab={"Settings","Настройки"},
  combatTarget={"QUEST TARGET","ЦЕЛЬ ЗАДАНИЯ"}, combatHint={"Current objective progress","Текущий прогресс цели"},
  classicNote={"Classic reference: base XP, money and item choices; not verified for Forever. Current client values take priority. XP can change with level and server rules.","Справочные награды Classic: базовый опыт, деньги и выбор предметов. Для Forever не подтверждены; данные клиента имеют приоритет. Опыт зависит от уровня и правил сервера."},
  requiredPayment={"Required payment","Нужно заплатить"}, spellReward={"Reward spell","Заклинание награды"},
@@ -112,7 +113,7 @@ function A.Settings()
 end
 function A.KeyName() return A.Settings().key=="altshift" and "Alt+Shift" or A.Settings().key=="off" and "off" or "Alt" end
 function A.ClickAction()
- if A.Settings().key=="off" then return end
+ if A.Settings().key=="off" or (A.FeatureEnabled and not A.FeatureEnabled("itemShortcuts")) then return end
  local alt=IsAltKeyDown and IsAltKeyDown()
  local shift=IsShiftKeyDown and IsShiftKeyDown()
  local ctrl=IsControlKeyDown and IsControlKeyDown()

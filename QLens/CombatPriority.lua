@@ -96,6 +96,7 @@ local function installSortHook()
 end
 
 local function setPriority(questID)
+    if A.FeatureEnabled and not A.FeatureEnabled("combatPriority") then return end
     if priorityQuestIDs[1] == questID then return end
     for i = #priorityQuestIDs, 1, -1 do
         if priorityQuestIDs[i] == questID then table.remove(priorityQuestIDs, i) end
@@ -326,6 +327,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
         installSortHook()
         return
     end
+    if A.FeatureEnabled and not A.FeatureEnabled("combatPriority") then return end
     if event == "PLAYER_REGEN_DISABLED" then promoteTarget(UnitGUID("target")); return end
     if event == "PLAYER_TARGET_CHANGED" then
         if UnitAffectingCombat("player") then promoteTarget(UnitGUID("target")) end
@@ -365,3 +367,7 @@ end)
 
 A.CombatPriority = { promoteTarget = promoteTarget, promoteGroundName = promoteGroundName,
     promoteGroundObject = promoteGroundObject, creatureID = creatureID }
+
+function A.CombatPriority.Reset()
+    if not A.FeatureEnabled("combatPriority") then priorityQuestIDs = {}; markDirty() end
+end

@@ -44,6 +44,7 @@ local function createButton()
     button:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
 
     position(button, tonumber(A.Settings().minimapAngle) or 225)
+    if A.FeatureEnabled and not A.FeatureEnabled("minimapButton") then button:Hide() end
     button:SetScript("OnDragStart", function(self)
         self.dragging = true
         self.dragged = true

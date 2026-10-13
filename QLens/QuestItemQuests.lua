@@ -286,13 +286,14 @@ local function appendTooltip(tooltip, link, itemID, itemName, force)
     if name == "" and GetItemInfo then local ok, value = pcall(GetItemInfo, itemID); if ok then name = value or "" end end
     local key = tostring(itemID) .. "\031" .. normalize(name) .. "\031" .. journalRevision
     if not force and tooltip.__QIQLink == key then return end
-    local list = questListFor(link, itemID, name)
-    local static = staticRows(itemID)
+    local questEnabled = not A.FeatureEnabled or A.FeatureEnabled("itemTooltips")
+    local list = questEnabled and questListFor(link, itemID, name)
+    local static = questEnabled and staticRows(itemID)
     local actionableStatic = hasActionableStatic(itemID)
     -- Static actionable relations already establish visibility; avoid a class API call in this hot path.
-    local questItem = actionableStatic or isQuestItem(itemID)
-    local craft = A.CraftProfessions and A.CraftProfessions(itemID)
-    if not list and not hasStaticRelation(itemID, questItem) and not questItem and not craft then
+    local questItem = questEnabled and (actionableStatic or isQuestItem(itemID))
+    local craft = (not A.FeatureEnabled or A.FeatureEnabled("craftHints")) and A.CraftProfessions and A.CraftProfessions(itemID)
+    if not list and not (questEnabled and hasStaticRelation(itemID, questItem)) and not questItem and not craft then
         if name == "" then
             trackedTooltips[tooltip] = { link=link, itemID=itemID, name="", pending=true }
             hideCompanion(tooltip, true)
@@ -307,7 +308,7 @@ local function appendTooltip(tooltip, link, itemID, itemName, force)
     if companion.ClearLines then companion:ClearLines() end
     companion:AddLine("|cff80c0ffQLens|r")
     local lineCount = 1
-    local hasQuests = list or hasStaticRelation(itemID, questItem) or questItem
+    local hasQuests = questEnabled and (list or hasStaticRelation(itemID, questItem) or questItem)
     if hasQuests then
         companion:AddLine("|cffffd580" .. T("questSection") .. "|r")
         lineCount=lineCount+1
@@ -627,4 +628,11 @@ if QIQ_TEST_MODE then
         hasActionRelation = hasActionRelation, isRewardOnly = isRewardOnly,
         getRevision = function() return journalRevision end,
     }
+end
+
+function A.RefreshFeatureTooltips()
+    for tooltip in pairs(companions) do
+        tooltip.__QIQLink = nil
+        hideCompanion(tooltip)
+    end
 end

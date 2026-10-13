@@ -54,7 +54,7 @@ local function iconFor(id)
  if GetItemIcon then return GetItemIcon(id) end
 end
 function G:RenderDetail()
- if self.mode=="prices" then return end
+ if self.mode=="prices" or self.mode=="settings" then return end
  for _,row in ipairs(self.detailPool) do row:Hide() end
  local craft=self.mode=="craft"
  local q=not craft and self.selected and self.data.quests[self.selected]
@@ -155,7 +155,7 @@ function G:RenderDetail()
  self:RenderList()
 end
 function G:RenderList()
- if self.mode=="prices" then return end
+ if self.mode=="prices" or self.mode=="settings" then return end
  local pages=math.max(1,math.ceil(#self.results/pageSize)); self.page=math.max(1,math.min(self.page or 1,pages))
  for i,b in ipairs(self.listPool) do
   local id=self.results[(self.page-1)*pageSize+i]; b.questID=self.mode~="craft" and id or nil; b.recipeID=self.mode=="craft" and id or nil
@@ -189,10 +189,11 @@ function G:RefreshPricePane()
  self.priceStatus:SetText(T("priceGuideCurrent",formatted))
 end
 function G:Refresh()
- self:ShowPriceView(self.mode=="prices")
+ self:ShowPriceView(self.mode=="prices" or self.mode=="settings")
+ if self.mode=="settings" then self:RefreshSettingsPane() end
  if self.mode=="prices" then self:RefreshPricePane() end
  self:StyleModeTabs()
- if self.mode=="prices" then return end
+ if self.mode=="prices" or self.mode=="settings" then return end
  local craft=self.mode=="craft"
  self.results=craft and self:CraftQuery(self.search:GetText(),self.itemID) or self:Query(self.search:GetText(),self.filter,self.itemID)
  self.filterButton:SetEnabled(not craft)
@@ -216,9 +217,11 @@ end
 function G:ShowPriceView(active)
  if active then
   for _,control in ipairs(self.browseControls) do control:Hide() end
-  self.pricePane:Show()
+  self.pricePane:SetShown(self.mode=="prices")
+  self.settingsPane:SetShown(self.mode=="settings")
  else
   self.pricePane:Hide()
+  self.settingsPane:Hide()
   for _,control in ipairs(self.browseControls) do control:Show() end
  end
 end
@@ -258,12 +261,12 @@ function G:CreateWindow()
  sigil:SetTexture("Interface\\QuestFrame\\UI-QuestLogTitleHighlight")
  if sigil.SetVertexColor then sigil:SetVertexColor(.28,.65,.64,.20) end
  self.modeTabs={}
- for i,mode in ipairs({"quests","craft","prices"}) do
+ for i,mode in ipairs({"quests","craft","prices","settings"}) do
   local target=mode
-  local b=button(f,T(mode=="quests" and "quests" or mode=="craft" and "craft" or "priceTab"),240,function() self:SetMode(target) end)
+  local b=button(f,T(mode=="quests" and "quests" or mode=="craft" and "craft" or mode=="prices" and "priceTab" or "settingsTab"),240,function() self:SetMode(target) end)
   b:SetSize(240,36)
   local icon=b:CreateTexture(nil,"ARTWORK");icon:SetSize(24,24);icon:SetPoint("LEFT",12,0)
-  icon:SetTexture(mode=="quests" and "Interface\\Icons\\INV_Misc_Note_01" or mode=="craft" and "Interface\\Icons\\Trade_BlackSmithing" or "Interface\\Icons\\INV_Misc_Coin_01")
+  icon:SetTexture(mode=="quests" and "Interface\\Icons\\INV_Misc_Note_01" or mode=="craft" and "Interface\\Icons\\Trade_BlackSmithing" or mode=="prices" and "Interface\\Icons\\INV_Misc_Coin_01" or "Interface\\Icons\\Trade_Engineering")
   b.text:ClearAllPoints();b.text:SetPoint("CENTER",12,0)
   b:SetPoint("TOPLEFT",20+(i-1)*248,-65)
   b.marker=b:CreateTexture(nil,"OVERLAY"); b.marker:SetColorTexture(1,.79,.35,1)
@@ -347,6 +350,7 @@ function G:CreateWindow()
  self.priceStatus=label(pane,"",18); self.priceStatus:SetPoint("TOPLEFT",28,-457); self.priceStatus:SetTextColor(.9,.8,.55)
  local example=label(pane,T("priceGuideExample"),17); example:SetPoint("TOPLEFT",28,-495); example:SetWidth(900); example:SetWordWrap(true); example:SetTextColor(.66,.76,.8)
  self.pricePane=pane; pane:Hide()
+ self:CreateSettingsPane(f)
  self.browseControls={self.search,self.searchHint,self.filterButton,self.clear,self.itemLabel,divider,self.listHeading,
   self.prev,self.next,self.counter,self.back,self.forward,self.cardKind,self.cardTitle,self.cardMeta,self.scroll}
  for _,row in ipairs(self.listPool) do table.insert(self.browseControls,row) end
@@ -377,7 +381,7 @@ function G:Open(id,itemID)
  end
  if itemID then self.itemID=itemID; self.page=1; self.search:SetText("") end
  self.frame:Show(); self:Refresh()
- if self.mode=="prices" then return true end
+ if self.mode=="prices" or self.mode=="settings" then return true end
  if id then self:Visit(id) end
  if self.mode~="craft" then
   if itemID and self.results[1] then

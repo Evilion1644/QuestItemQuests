@@ -117,6 +117,8 @@ def prepare():
     # English templates avoid copying untranslated commit subjects into release notes.
     lines = [f"# QLens {metadata['Version']}", "", "Target: World of Warcraft: Forever 1.60.1 (Interface 16001).", "", "## Changes", ""]
     categories = [
+        (lambda p: p == "QLens/ZoneTracking.lua", "Automatically track quests by their current destination zone, including new Forever quests, with original watch-list restoration."),
+        (lambda p: p == "QLens_Guide/SettingsView.lua", "Add a Settings tab with eight feature toggles and plain-language descriptions."),
         (lambda p: p == "QLens/PartyQuestTooltip.lua", "Show each party member's quest status when hovering quest markers on the world map; solo tooltips remain unchanged."),
         (lambda p: p in ("QLens/CombatPriority.lua", "QLens/CombatIndex.lua"), "Prioritize relevant unfinished quests in the regular objective tracker during combat and supported ground-object interactions."),
         (lambda p: p == "QLens/VendorPrice.lua", "Highlight bag and bank stacks whose total vendor sell value is below a configurable threshold."),

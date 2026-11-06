@@ -1,6 +1,8 @@
 -- Local development export of the user's pinned QuestieDB snapshot.
 -- Do not publish generated data until upstream redistribution terms are verified.
 local root,outRoot=assert(arg[1]),assert(arg[2])
+local source=assert(arg[3], "Pinned source commit required")
+assert(QLENS_EXPORT_CORRECTED, "Use tools/refresh_forever.py: raw tables omit release content")
 local db,zone,loc={},{private={}},{questLookup={},npcNameLookup={},objectLookup={},itemLookup={}}
 QuestieLoader={ImportModule=function(_,name) if name=="l10n" then return loc elseif name=="ZoneDB" then return zone else return db end end}
 GetLocale=function() return "ruRU" end
@@ -9,6 +11,7 @@ for _,kind in ipairs({"Quest","Npc","Object","Item"}) do
  dofile(root.."/data/Forever/forever"..kind.."DB.lua")
  local low=kind:lower(); raw[low]=assert(loadstring(db[low.."Data"]))()
 end
+if QLENS_EXPORT_CORRECTED then for kind,entry in pairs(QLENS_EXPORT_CORRECTED) do raw[kind:lower()]=entry.entities end end
 for _,kind in ipairs({"Quests","Npcs","Objects","Items"}) do dofile(root.."/l10n/Forever/lookup"..kind.."/ruRU.lua") end
 local function lookup(t) return type(t.ruRU)=="function" and t.ruRU() or t.ruRU or {} end
 local ru={quest=lookup(loc.questLookup),npc=lookup(loc.npcNameLookup),object=lookup(loc.objectLookup),item=lookup(loc.itemLookup)}
@@ -26,13 +29,13 @@ local function serialize(v)
  a[#a+1]="}"; return table.concat(a)
 end
 local function write(path,global,value)
- local f=assert(io.open(outRoot.."/"..path,"wb")); f:write("-- Generated; source QuestieDB e0a6eaa86f181ac99262e34126bcd2ed1a1712d6; raw snapshot, no corrections.\n",global,"=",serialize(value),"\n"); f:close()
+ local f=assert(io.open(outRoot.."/"..path,"wb")); f:write("-- Generated; source QuestieDB "..source.."; static corrections and derived passes.\n",global,"=",serialize(value),"\n"); f:close()
 end
 local function names(kind,id,row)
  local value=ru[kind][id]; local name=type(value)=="table" and value[1] or value
  return {enUS=row[1],ruRU=type(name)=="string" and name or nil}
 end
-local guide={schema=1,source="e0a6eaa86f181ac99262e34126bcd2ed1a1712d6",profile="raw-no-corrections",quests={},entities={npc={},object={},item={}},maps=maps,ids={}}
+local guide={schema=1,source=source,profile="static-corrections-derived",quests={},entities={npc={},object={},item={}},maps=maps,ids={}}
 local qk,ik=db.questKeys,db.itemKeys
 assert(qk.objectives==10 and qk.requiredSourceItems==21 and ik.questRewards==6,"schema drift")
 local need={npc={},object={},item={}}
@@ -78,7 +81,7 @@ for id,r in pairs(guide.quests) do
 end
 local function follow(from,to)
  local q=guide.quests[math.abs(from)]
- if q then for _,id in ipairs(q.follow) do if id==to then return end end; q.follow[#q.follow+1]=to end
+ if q and guide.quests[to] then for _,id in ipairs(q.follow) do if id==to then return end end; q.follow[#q.follow+1]=to end
 end
 for id,r in pairs(guide.quests) do
  for _,prev in ipairs(r.all or {}) do follow(prev,id) end

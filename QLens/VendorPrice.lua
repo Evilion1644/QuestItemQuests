@@ -11,7 +11,7 @@ local function threshold()
 end
 
 local function bagAndSlot(button)
-    if not button then return end
+    if not button or (button.IsForbidden and button:IsForbidden()) then return end
     if button.IsCached and button:IsCached() then return end
     local bag
     if button.GetBag then bag = button:GetBag() end
@@ -100,6 +100,7 @@ local function showBorder(button, visible)
 end
 
 local function updateButton(button)
+    if button.IsForbidden and button:IsForbidden() then return end
     local bag, slot = bagAndSlot(button)
     if not bag or (A.FeatureEnabled and not A.FeatureEnabled("vendorHighlight")) or threshold() == 0 then showBorder(button, false); return end
     local link, count = itemData(button, bag, slot)
@@ -107,6 +108,7 @@ local function updateButton(button)
     local getInfo = C_Item and C_Item.GetItemInfo or GetItemInfo
     if type(getInfo) ~= "function" then showBorder(button, false); return end
     local price = select(11, getInfo(link))
+    if issecretvalue and (issecretvalue(price) or issecretvalue(count)) then showBorder(button, false); return end
     showBorder(button, type(price) == "number" and price > 0 and price * count < threshold())
 end
 
@@ -115,7 +117,7 @@ function P.Refresh()
 end
 
 local function watchButton(button)
-    if not button then return end
+    if not button or (button.IsForbidden and button:IsForbidden()) then return end
     local bag = bagAndSlot(button)
     if not bag then return end
     buttons[button] = true
@@ -123,8 +125,8 @@ local function watchButton(button)
 end
 
 local function scanFrame(frame, depth)
-    if depth > 8 or not frame or not frame.IsShown or not frame:IsShown() then return end
-    if frame.GetObjectType and frame:GetObjectType() == "Button" then watchButton(frame) end
+    if depth > 8 or not frame or (frame.IsForbidden and frame:IsForbidden()) or not frame.IsShown or not frame:IsShown() then return end
+    if frame.GetObjectType and (frame:GetObjectType() == "Button" or frame:GetObjectType() == "ItemButton") then watchButton(frame) end
     if frame.GetChildren then
         local children = {frame:GetChildren()}
         for _, child in ipairs(children) do scanFrame(child, depth + 1) end
@@ -132,7 +134,11 @@ local function scanFrame(frame, depth)
 end
 
 function P.Scan()
-    scanFrame(UIParent, 0)
+    -- Only inspect bag windows, never the entire (potentially forbidden) UI tree.
+    scanFrame(ContainerFrameCombinedBags, 0)
+    for i=1, (NUM_CONTAINER_FRAMES or 13) do scanFrame(_G["ContainerFrame"..i], 0) end
+    scanFrame(BankFrame, 0)
+    for button in pairs(buttons) do updateButton(button) end
 end
 
 local function scheduleScan()
@@ -227,19 +233,22 @@ function P.Open()
     panel:Show()
 end
 
+local installedHooks = {}
 local events = CreateFrame("Frame")
+events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("PLAYER_LOGIN")
 events:RegisterEvent("BAG_UPDATE")
 events:RegisterEvent("BAG_UPDATE_DELAYED")
 events:RegisterEvent("GET_ITEM_INFO_RECEIVED")
 events:SetScript("OnEvent", function(_, event)
-    if event == "PLAYER_LOGIN" then
+    if event == "PLAYER_LOGIN" or event == "ADDON_LOADED" then
         if hooksecurefunc then
             for _, name in ipairs({"SetItemButtonQuality", "SetItemButtonTexture", "SetItemButtonCount"}) do
-                if type(_G[name]) == "function" then hooksecurefunc(name, watchButton) end
+                if type(_G[name]) == "function" and not installedHooks[name] then hooksecurefunc(name, watchButton); installedHooks[name]=true end
             end
-            if BagBrother and BagBrother.ContainerItem then
+            if BagBrother and BagBrother.ContainerItem and type(BagBrother.ContainerItem.Update)=="function" and not installedHooks[BagBrother.ContainerItem] then
                 hooksecurefunc(BagBrother.ContainerItem, "Update", watchButton)
+                installedHooks[BagBrother.ContainerItem]=true
             end
         end
         scheduleScan()

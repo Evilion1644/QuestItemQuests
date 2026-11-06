@@ -20,7 +20,7 @@ dofile("QLens_Guide/CraftData.lua")
 dofile("QLens_Guide/CraftModel.lua")
 local G=QIQ.Guide
 test("Full guide schema and localized core coverage",function()
- assert(#G.data.ids==4244)
+ assert(#G.data.ids==5233)
  for id in pairs(QIQ_QUEST_TITLES) do assert(QIQ_TITLES.enUS[id] and G.data.quests[id]) end
  for _,q in pairs(G.data.quests) do assert(q.names.enUS and q.names.enUS~=""); for _,n in ipairs(q.follow) do assert(G.data.quests[n]) end end
 end)
@@ -29,7 +29,7 @@ test("Exact ID and bilingual search",function()
  assert(#G:Query("МАРТЕК","all")>0)
  assert(#G:Query("Martek","all")>0)
  assert(#G:Query("\"impossible needle\"","all")==0)
- assert(#G:Query("","all")==4244)
+ assert(#G:Query("","all")==5233)
 end)
 test("Item filter includes reward relations",function()
  local results=G:Query("","all",9173); local found=false
@@ -92,7 +92,7 @@ test("Reward reader restores selection and distinguishes choice and guaranteed i
  assert(selected==7 and r.xp==1250 and r.money==1350)
  assert(r.items[1].count==2 and r.choices[1].id==101)
  GetQuestLogRewardInfo=function() error("client unavailable") end
- r=G:ReadRewards(2); assert(selected==7 and r.xp==nil)
+ r=G:ReadRewards(2); assert(selected==7 and r.xp==1250 and not r.knownItems)
  QIQ.ActiveQuests[2]=nil
  r=G:ReadRewards(2); assert(r.money==nil and r.knownItems==nil)
  GetQuestLogRewardInfo=nil
@@ -141,7 +141,7 @@ test("All quests have steps; matching Classic rewards and item choices are prese
    end
   end
  end
- assert(matched==4244); print("Matched Classic references: "..matched)
+ assert(matched==4230); print("Matched Classic references: "..matched)
  assert(G:ClassicReward(875).xp==1150 and G:ClassicReward(875).money==800)
  local c=QIQ_CLASSIC_REWARDS[875]; local name=c.title;c.title="different quest";assert(not G:ClassicReward(875));c.title=name
 end)
@@ -189,7 +189,7 @@ test("Guide UI open, search, page, history, item filter and clear",function()
  G.search:SetText("1106"); assert(#G.results==1)
  G.search:SetText(""); G.next.scripts.OnClick(); assert(G.page==2)
  assert(G:Open(nil,9173)); assert(G.itemID==9173 and G.selected==2843)
- G.clear.scripts.OnClick(); assert(not G.itemID and #G.results==4244)
+ G.clear.scripts.OnClick(); assert(not G.itemID and #G.results==5233)
  G.frame:Hide(); assert(not G.frame:IsShown())
  assert(G:Open(2)); assert(G.selected==2)
  assert(G:Open(875)); assert(G.selected==875)
@@ -203,7 +203,7 @@ test("Overview visibly includes every reference item reward for every quest",fun
   local visible={}
   for _,row in ipairs(G.detailPool) do if row:IsShown() and row.action and row.action.kind=="item" then visible[row.action.id]=true end end
   local c=G:ClassicReward(id)
-  for _,group in ipairs({c.items,c.choices}) do for _,item in ipairs(group) do assert(visible[item.id],id..":"..item.id) end end
+  if c then for _,group in ipairs({c.items,c.choices}) do for _,item in ipairs(group) do assert(visible[item.id],id..":"..item.id) end end end
  end
 end)
 test("Craft data and reverse professions agree for every material",function()
@@ -290,3 +290,47 @@ assert(not QIQ.FeatureEnabled("zoneTracking"))
 G:SetMode("prices"); assert(G.pricePane:IsShown() and not G.settingsPane:IsShown())
 G:SetMode("quests"); assert(not G.settingsPane:IsShown() and G.search:IsShown())
 print("PASS settings tab switching and persisted checkbox")
+
+assert(G.featureChecks.questSparkles == nil, "Removed feature must not appear in Settings")
+
+-- A new release quest/item need no offline database entry.
+local newID=990001
+QIQ.ActiveQuests[newID]="Live-only quest"
+C_QuestLog.GetTitleForQuestID=function(id) if id==newID then return "Live-only quest" end end
+C_QuestLog.GetQuestObjectives=function(id) if id==newID then return {{text="New jewelry: 0/1",type="item"}} end end
+QIQ.LiveItemQuests=function(itemID) return itemID==990002 and {{id=newID,title="Live-only quest"}} or {} end
+C_QuestLog.GetLogIndexForQuestID=function(id) if id==newID then return 1 end end
+GetQuestLogQuestText=function() return "Live description", "Collect jewelry" end
+G:Open(nil,990002)
+assert(G.selected==newID and G:Title(newID)=="Live-only quest")
+local liveText={};for _,row in ipairs(G:Rows(newID)) do liveText[#liveText+1]=row.text end
+assert(table.concat(liveText," "):find("New jewelry: 0/1",1,true))
+assert(table.concat(liveText," "):find("Live description",1,true))
+print("PASS guide shows live-only quest, objectives and description from item")
+
+-- Mainline Forever retains legacy globals, but QuestMapFrame selects by quest ID.
+local selectedQuest=7
+C_QuestLog.GetSelectedQuest=function() return selectedQuest end
+C_QuestLog.SetSelectedQuest=function(id) selectedQuest=id end
+GetQuestLogSelection=function() return 99 end
+SelectQuestLogEntry=function() error("obsolete selection path must never run") end
+GetQuestLogSelectedID=function() return 0 end
+GetQuestLogRewardXP=function() assert(selectedQuest==newID); return 1550 end
+GetQuestLogRewardMoney=function() return 2300 end
+GetNumQuestLogRewards=function() return 1 end
+GetNumQuestLogChoices=function() return 1 end
+GetQuestLogRewardInfo=function() return "Guaranteed",1,2,1,true,100 end
+GetQuestLogChoiceInfo=function() return "Choice",2,1,1,true,101 end
+local rewards=G:ReadRewards(newID)
+assert(rewards.xp==1550 and rewards.money==2300 and rewards.items[1].count==2 and rewards.choices[1].id==101)
+assert(selectedQuest==7)
+GetQuestLogRewardInfo=function() error("item still loading") end
+rewards=G:ReadRewards(newID);assert(selectedQuest==7 and rewards.xp==1550 and not rewards.knownItems)
+print("PASS Forever reward context ignores stale legacy globals and restores selected quest")
+
+G.selected=newID
+G.rewardSnapshot={[newID]={xp=1550,money=2300,knownItems=true,items={{id=100,count=2}},choices={{id=101,count=1}}}}
+G:CaptureRewards();assert(G.rewardSnapshot[newID].items[1].id==100)
+assert(G.data.quests[95774] and G.data.quests[95774].level==20)
+assert(G:Query("","all",277277)[1]==95774)
+print("PASS complete Forever overlay and transient item load preserve known rewards")

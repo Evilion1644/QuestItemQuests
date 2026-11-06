@@ -11,7 +11,7 @@ end
 function G:Name(names,id)
  return names and (names[A.locale] or names.enUS) or T("quest")..tostring(id)
 end
-function G:Title(id) local q=D.quests[id]; return q and self:Name(q.names,id) or T("quest")..id end
+function G:Title(id) local q=D.quests[id]; return type(A.ActiveQuests[id])=="string" and A.ActiveQuests[id] or q and self:Name(q.names,id) or T("quest")..id end
 function G:EntityName(kind,id)
  if kind=="item" then local name=call(C_Item and C_Item.GetItemNameByID or GetItemInfo,id); if name then return name end end
  local e=D.entities[kind] and D.entities[kind][id]
@@ -47,11 +47,54 @@ function G:SearchText(q)
  end
  local text=A.Normalize(table.concat(t," ")); self.searchCache[q.id]=text; return text
 end
+-- Overlay active quests missing from the offline database using client data.
+function G:SyncLiveQuests(itemID)
+ local api=C_QuestLog or {}
+ local itemSet={}
+ if itemID and A.LiveItemQuests then
+  for _,row in ipairs(A.LiveItemQuests(itemID)) do itemSet[row.id]=true end
+ end
+ local ids={}
+ for id in pairs(A.ActiveQuests or {}) do ids[id]=true end
+ for id in pairs(itemSet) do ids[id]=true end
+ for id in pairs(ids) do
+  local existing=D.quests[id]
+  if existing and not existing.live then
+   local title=call(api.GetTitleForQuestID,id) or A.ActiveQuests[id]
+   if type(title)=="string" then existing.names[A.locale]=title; self.searchCache[id]=nil end
+   local index=call(api.GetLogIndexForQuestID,id)
+   if index and index>0 then
+    local description,summary=call(GetQuestLogQuestText,index)
+    if description and description~="" then existing.liveTexts={description}; if summary and summary~="" then existing.liveTexts[#existing.liveTexts+1]=summary end end
+   end
+  end
+  if not D.quests[id] or D.quests[id].live then
+   local title=call(api.GetTitleForQuestID,id) or A.ActiveQuests[id]
+   local index=call(api.GetLogIndexForQuestID,id)
+   local description,summary
+   if index and index>0 then description,summary=call(GetQuestLogQuestText,index) end
+   local texts={}
+   if description and description~="" then texts[#texts+1]=description end
+   if summary and summary~="" then texts[#texts+1]=summary end
+   for _,o in ipairs(call(api.GetQuestObjectives,id) or {}) do
+    if o.text then texts[#texts+1]=o.text end
+   end
+   if title then
+    if not D.quests[id] then D.ids[#D.ids+1]=id end
+    D.quests[id]={id=id,live=true,names={enUS=title,[A.locale]=title},texts={enUS=texts,[A.locale]=texts},
+     start={},finish={},objectives={},rewards={},zone=0}
+    self.searchCache[id]=nil
+   end
+  end
+ end
+ return itemSet
+end
 function G:Query(text,filter,itemID)
+ local liveItemSet=self:SyncLiveQuests(itemID)
  local words={}; for w in A.Normalize(text or ""):gmatch("%S+") do words[#words+1]=w end
  local itemSet
  if itemID then
-  itemSet={}; for _,row in ipairs(A.Relations[itemID] or {}) do itemSet[row[1]]=true end
+  itemSet=liveItemSet; for _,row in ipairs(A.Relations[itemID] or {}) do itemSet[row[1]]=true end
   if not self.referenceItemQuests then
    self.referenceItemQuests={}
    for _,questID in ipairs(D.ids) do
@@ -83,6 +126,7 @@ function G:Query(text,filter,itemID)
  return result
 end
 function G:Visit(id)
+ if not D.quests[id] then self:SyncLiveQuests() end
  if not D.quests[id] then return false end
  if self.history[self.cursor]~=id then
   for n=#self.history,self.cursor+1,-1 do self.history[n]=nil end
@@ -123,7 +167,7 @@ function G:ReadRewards(id)
  if not A.ActiveQuests[id] then return result end
  -- Reward globals read the legacy quest-log selection, not necessarily the
  -- quest selected by the modern map/quest UI. Prefer the same context as QuestInfo.
- local legacy=type(GetQuestLogSelection)=="function" and type(SelectQuestLogEntry)=="function" and type(GetQuestLogSelectedID)=="function"
+ local legacy=not (C_QuestLog and type(C_QuestLog.SetSelectedQuest)=="function" and type(C_QuestLog.GetSelectedQuest)=="function") and type(GetQuestLogSelection)=="function" and type(SelectQuestLogEntry)=="function" and type(GetQuestLogSelectedID)=="function"
  local modern=C_QuestLog and type(C_QuestLog.SetSelectedQuest)=="function" and type(C_QuestLog.GetSelectedQuest)=="function"
  local index=call(C_QuestLog and C_QuestLog.GetLogIndexForQuestID or GetQuestLogIndexByID,id)
  if not legacy and not modern then return result end
@@ -133,7 +177,7 @@ function G:ReadRewards(id)
  local ok=pcall(function()
   setter(legacy and index or id)
   -- Do not trust a different UI's selected ID as proof of the reward context.
-  if call(GetQuestLogSelectedID)~=id then return end
+  if call(legacy and GetQuestLogSelectedID or C_QuestLog.GetSelectedQuest)~=id then return end
   if call(C_QuestLog and C_QuestLog.ShouldShowQuestRewards,id)==false then return end
   local xp=call(GetQuestLogRewardXP)
   local money=call(GetQuestLogRewardMoney)
@@ -141,7 +185,8 @@ function G:ReadRewards(id)
    local count=call(countFn); local out={}
    if type(count)~="number" or count<0 or count>100 or count%1~=0 or type(infoFn)~="function" then return nil end
    for i=1,count do
-    local name,texture,quantity,quality,usable,itemID=infoFn(i)
+    local loaded,name,texture,quantity,quality,usable,itemID=pcall(infoFn,i)
+    if not loaded then return nil end
     if type(itemID)~="number" or itemID<=0 or type(quantity)~="number" or quantity<=0 or not name then return nil end
     out[#out+1]={name=name,texture=texture,count=quantity,quality=quality,id=itemID}
    end
@@ -222,6 +267,11 @@ local function sortedKeys(t)
 end
 function G:WalkthroughRows(id)
  local q=D.quests[id]; if not q then return {} end
+ if q.live then
+  local rows={{text=A.locale=="ruRU" and "Данные текущего журнала заданий" or "Current quest log",heading=true,tab="overview"}}
+  for _,text in ipairs(q.texts[A.locale] or q.texts.enUS or {}) do rows[#rows+1]={text=text,tab="overview"} end
+  return rows
+ end
  local rows={}; local ru=A.locale=="ruRU"; local step=0
  local function add(text,action,heading)
   rows[#rows+1]={text=text,action=action,heading=heading,tab="overview"}
@@ -256,7 +306,7 @@ function G:WalkthroughRows(id)
  add(T("generatedSteps"))
  endpoints(q.start,"takeAt")
  if q.sourceItem then add(T("providedItem",self:EntityName("item",q.sourceItem)),{kind="item",id=q.sourceItem}) end
- local texts=q.texts[A.locale] or q.texts.enUS
+ local texts=q.liveTexts or q.texts[A.locale] or q.texts.enUS
  if texts then for _,text in ipairs(texts) do if text~="" then numbered(text) end end end
  for i,kind in ipairs({"npc","object","item"}) do
   for _,ref in ipairs(q.objectives and q.objectives[i] or {}) do
@@ -352,7 +402,7 @@ function G:Rows(id)
  if A.ActiveQuests[id] and type(live)=="table" and #live>0 then
   for _,o in ipairs(live) do add(o.text or "") end
  else
-  local texts=q.texts[A.locale] or q.texts.enUS
+  local texts=q.liveTexts or q.texts[A.locale] or q.texts.enUS
   if not q.texts[A.locale] and A.locale=="ruRU" and texts then add(T("english")) end
   if texts and #texts>0 then for _,text in ipairs(texts) do if text~="" then add(text) end end else add(T("noData")) end
  end

@@ -1,0 +1,17 @@
+{
+  "source": "https://github.com/Questie/QuestieDB",
+  "commit": "21be34023b72cf2ec3027cb9a61a8b72a1910857",
+  "profile": "static-corrections-derived",
+  "quests": 5233,
+  "indexedItems": 5887,
+  "itemQuestRelations": 8791,
+  "questClassItems": 3331,
+  "excludedDanglingRelations": 7,
+  "sha256": {
+    "QLens/Titles.lua": "8fa5e33ead1976b4bd508088c68ce824d2fed024d6e4bd3d539cae14317e349a",
+    "QLens/QuestItemQuestsData.lua": "5dc923be0bdb9c26c2fca2d37261f4fc1432df0cd462cbff8645a2845921ca64",
+    "QLens/ZoneQuestIndex.lua": "204fa1b12f29e424995422679ba395458bdb5af8ff215a283b463bc646a5b498",
+    "QLens/CombatIndex.lua": "8ccbd825aecce8c61d88b04b75fc17344d5421f7653df905549db3931f059a71",
+    "QLens_Guide/Data.lua": "361a6c71ddeb68aebe48a64b7e3e169b270a8f5e4659d32b6a7ef25fd68b8044"
+  }
+}

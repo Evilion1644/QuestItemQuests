@@ -171,7 +171,7 @@ function Z.Update()
         local target
         if enabled then
             if saved.original[row.id] == nil then saved.original[row.id] = row.watched end
-            if overrides[row.id] == nil then target = Z.Relevant(row.id, map) end
+            if overrides[row.id] == nil then target = Z.Relevant(row.id, map) == true end
         else target = saved.original[row.id] end
         if target ~= nil and target ~= row.watched then changes[#changes+1] = {row=row, value=target} end
     end

@@ -369,9 +369,18 @@ function G:CreateWindow()
  end)
 end
 function G:CaptureRewards()
- if self.selected then self.rewardSnapshot=self.rewardSnapshot or {}; self.rewardSnapshot[self.selected]=self:ReadRewards(self.selected) end
+ if self.selected then
+  self.rewardSnapshot=self.rewardSnapshot or {}
+  local fresh=self:ReadRewards(self.selected)
+  local saved=self.rewardSnapshot[self.selected] or {items={},choices={}}
+  if fresh.xp~=nil then saved.xp=fresh.xp end
+  if fresh.money~=nil then saved.money=fresh.money end
+  if fresh.knownItems then saved.items=fresh.items; saved.choices=fresh.choices; saved.knownItems=true end
+  self.rewardSnapshot[self.selected]=saved
+ end
 end
 function G:Open(id,itemID)
+ self:SyncLiveQuests(itemID)
  if id and not self.data.quests[id] then print(T("questUnavailable",tostring(id))); return false end
  if not self.frame then self:CreateWindow() end
  if id then self.mode="quests" end
@@ -390,5 +399,23 @@ function G:Open(id,itemID)
    self:Visit(nextID)
   elseif itemID then self.selected=nil end
  end
+ if self.selected and C_QuestLog and C_QuestLog.RequestLoadQuestByID then C_QuestLog.RequestLoadQuestByID(self.selected) end
  self:CaptureRewards(); self:RenderDetail(); return true
 end
+
+-- Refresh open rewards when quest/item information arrives after opening a card.
+local rewardsEvents=CreateFrame("Frame")
+rewardsEvents:RegisterEvent("QUEST_DATA_LOAD_RESULT")
+rewardsEvents:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+local rewardsPending=false
+rewardsEvents:SetScript("OnEvent",function(_,event,id,success)
+ if not G.frame or not G.frame:IsShown() or not G.selected or success==false then return end
+ if event=="QUEST_DATA_LOAD_RESULT" and id~=G.selected then return end
+ if rewardsPending then return end
+ rewardsPending=true
+ local function refresh()
+  rewardsPending=false
+  if G.frame and G.frame:IsShown() then G:CaptureRewards(); G:RenderDetail() end
+ end
+ if C_Timer and C_Timer.After then C_Timer.After(.1,refresh) else refresh() end
+end)

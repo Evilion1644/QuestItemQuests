@@ -1,10 +1,15 @@
 local A = assert(QIQ, "Locale.lua must load first")
+local function secret(value) return issecretvalue and issecretvalue(value) end
+local function publicGUID(unit)
+    local value = UnitGUID and UnitGUID(unit)
+    if not secret(value) then return value end
+end
 local priorityQuestIDs = {}
 local wrappedTracker
 local originalHeaderColors = {}
 
 local function creatureID(guid)
-    if type(guid) ~= "string" or not guid:find("^Creature%-") then return nil end
+    if secret(guid) or type(guid) ~= "string" or not guid:find("^Creature%-") then return nil end
     local n = 0
     for part in guid:gmatch("[^%-]+") do
         n = n + 1
@@ -13,6 +18,7 @@ local function creatureID(guid)
 end
 
 local function markDirty()
+    if InCombatLockdown and InCombatLockdown() then return end
     local tracker = _G.QuestObjectiveTracker
     if tracker and type(tracker.MarkDirty) == "function" then
         tracker:MarkDirty()
@@ -59,6 +65,7 @@ local function putPrioritiesFirst(entries, questIDOf)
 end
 
 local function installSortHook()
+    if InCombatLockdown and InCombatLockdown() then return end
     local tracker = _G.QuestObjectiveTracker
     if not tracker or wrappedTracker == tracker then return end
     if type(tracker.BuildQuestWatchInfos) == "function" then
@@ -177,7 +184,7 @@ local function activeIDs()
 end
 
 local function promoteLiveTarget(name)
-    if type(name) ~= "string" or name == "" then return false end
+    if secret(name) or type(name) ~= "string" or name == "" then return false end
     local api = C_QuestLog
     if not api or type(api.GetQuestObjectives) ~= "function" then return false end
     local normalize = A.Normalize or string.lower
@@ -201,6 +208,7 @@ local function promoteLiveTarget(name)
 end
 
 local function tooltipText(text)
+    if secret(text) then return "" end
     text = tostring(text or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
     text = text:gsub("|T.-|t", ""):gsub("|A.-|a", "")
     return (A.Normalize or string.lower)(text)
@@ -210,7 +218,7 @@ local function promoteTooltip(guid)
     if not (C_TooltipInfo and type(C_TooltipInfo.GetUnit)=="function") then return false end
     local unit
     for _, token in ipairs({"target", "mouseover"}) do
-        if UnitGUID(token)==guid then unit=token; break end
+        if publicGUID(token)==guid then unit=token; break end
     end
     if not unit then return false end
     local ok, data=pcall(C_TooltipInfo.GetUnit,unit)
@@ -271,7 +279,7 @@ end
 local function promoteTarget(guid, name)
     local creature = creatureID(guid)
     if not creature then return end
-    if not name and UnitGUID and UnitName and UnitGUID("target") == guid then name=UnitName("target") end
+    if not name and UnitGUID and UnitName and publicGUID("target") == guid then name=UnitName("target") end
     if promoteLiveTarget(name) then return end
     if promoteTooltip(guid) then return end
     local quests = creature and QIQ_COMBAT_OBJECTIVES and QIQ_COMBAT_OBJECTIVES[creature]
@@ -334,7 +342,7 @@ local function groundNameIndexes()
     groundObjectsByName, groundSourceItemsByName = {}, {}
     local normalize = A.Normalize or string.lower
     local function add(index, name, id)
-        if type(name) ~= "string" or name == "" then return end
+        if secret(name) or type(name) ~= "string" or name == "" then return end
         local key = normalize(name)
         index[key] = index[key] or {}
         index[key][#index[key] + 1] = id
@@ -377,7 +385,7 @@ local function promoteGroundSourceItem(itemID)
 end
 
 local function promoteGroundName(name)
-    if type(name) ~= "string" or name == "" then return end
+    if secret(name) or type(name) ~= "string" or name == "" then return end
     groundNameIndexes()
     local key = (A.Normalize or string.lower)(name)
     for _, objectID in ipairs(groundObjectsByName[key] or {}) do
@@ -409,7 +417,7 @@ local function promoteGroundName(name)
 end
 
 local function gameObjectID(guid)
-    if type(guid) ~= "string" or not guid:find("^GameObject%-") then return nil end
+    if secret(guid) or type(guid) ~= "string" or not guid:find("^GameObject%-") then return nil end
     local n = 0
     for part in guid:gmatch("[^%-]+") do
         n = n + 1
@@ -444,7 +452,13 @@ for _, event in ipairs({
     "PLAYER_REGEN_DISABLED", "PLAYER_TARGET_CHANGED",
     "QUEST_LOG_UPDATE", "UNIT_SPELLCAST_SENT", "UNIT_SPELLCAST_START",
     "LOOT_READY", "LOOT_OPENED", "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_ENABLED",
-}) do frame:RegisterEvent(event) end
+}) do
+    -- pcall cannot prevent the client's blocked-action dialog. Never attempt
+    -- restricted combat-log registration on clients with secret values.
+    if event ~= "COMBAT_LOG_EVENT_UNFILTERED" or not issecretvalue then
+        frame:RegisterEvent(event)
+    end
+end
 
 frame:SetScript("OnEvent", function(_, event, ...)
     if event == "ADDON_LOADED" or event == "PLAYER_LOGIN" then
@@ -463,9 +477,10 @@ frame:SetScript("OnEvent", function(_, event, ...)
         return
     end
     if A.FeatureEnabled and not A.FeatureEnabled("combatPriority") then return end
-    if event == "PLAYER_REGEN_DISABLED" then promoteTarget(UnitGUID("target")); return end
+    if event == "PLAYER_REGEN_DISABLED" then promoteTarget(publicGUID("target")); return end
     if event == "PLAYER_TARGET_CHANGED" then
-        if UnitAffectingCombat("player") then promoteTarget(UnitGUID("target")) end
+        local combat = UnitAffectingCombat("player")
+        if not secret(combat) and combat then promoteTarget(publicGUID("target")) end
         return
     end
     if event == "UNIT_SPELLCAST_SENT" then
@@ -484,8 +499,11 @@ frame:SetScript("OnEvent", function(_, event, ...)
         promoteLootSource()
         return
     end
-    local _, subevent, _, sourceGUID, _, _, _, destGUID, destName = CombatLogGetCurrentEventInfo()
-    if sourceGUID ~= UnitGUID("player") and sourceGUID ~= UnitGUID("pet") then return end
+    if event ~= "COMBAT_LOG_EVENT_UNFILTERED" or type(CombatLogGetCurrentEventInfo) ~= "function" then return end
+    if C_CombatLog and C_CombatLog.IsCombatLogRestricted and C_CombatLog.IsCombatLogRestricted() then return end
+    local ok, _, subevent, _, sourceGUID, _, _, _, destGUID, destName = pcall(CombatLogGetCurrentEventInfo)
+    if not ok or secret(subevent) or secret(sourceGUID) or secret(destGUID) or secret(destName) then return end
+    if sourceGUID ~= publicGUID("player") and sourceGUID ~= publicGUID("pet") then return end
     if subevent == "SWING_DAMAGE" or subevent == "RANGE_DAMAGE" or
        subevent == "SPELL_DAMAGE" or subevent == "SPELL_PERIODIC_DAMAGE" or
        subevent == "DAMAGE_SHIELD" then

@@ -1,3 +1,4 @@
+assert(QLENS_EXPORT_CORRECTED, "Use tools/refresh_forever.py for corrected Forever data")
 -- Generates QuestItemQuestsData.lua from QuestieDB Forever.
 -- Usage: lua tools/generate_qiq_index.lua <QuestieDB root> [output file]
 local questieRoot = (arg and arg[1]) or "../QuestieDB"
@@ -15,6 +16,7 @@ dofile(questieRoot .. "/data/Forever/foreverQuestDB.lua")
 dofile(questieRoot .. "/data/Forever/foreverItemDB.lua")
 local quests = assert(loadstring(QuestieDB.questData))()
 local items = assert(loadstring(QuestieDB.itemData))()
+if QLENS_EXPORT_CORRECTED then quests=QLENS_EXPORT_CORRECTED.Quest.entities; items=QLENS_EXPORT_CORRECTED.Item.entities end
 dofile(questieRoot .. "/l10n/Forever/lookupQuests/ruRU.lua")
 local ruLookup = l10n.questLookup.ruRU
 local ruTitles = type(ruLookup) == "function" and ruLookup() or (ruLookup or {})
@@ -23,9 +25,11 @@ local qk, ik = assert(QuestieDB.questKeys), assert(QuestieDB.itemKeys)
 local STARTED_BY_ITEM, OBJECTIVE_ITEM = 3, 3
 local RELATION = { objective=1, source=2, required=4, startedBy=8, startQuest=16, related=32, reward=64 }
 local map = {}
+local skipped = 0
 local function add(itemID, questID, kind)
     itemID, questID = tonumber(itemID), tonumber(questID)
     if not itemID or not questID or itemID <= 0 or questID <= 0 then return end
+    if not quests[questID] or not items[itemID] then skipped=skipped+1; return end
     map[itemID] = map[itemID] or {}
     map[itemID][questID] = map[itemID][questID] or {}
     map[itemID][questID][kind] = true
@@ -132,3 +136,5 @@ for _, rows in pairs(map) do
 end
 print("relations", relations)
 print("output", outputPath)
+
+print("Excluded dangling source relations: "..skipped)

@@ -18,8 +18,10 @@ for itemID, rows in pairs(QIQ_ITEM_QUESTS) do
 end
 local classCount=0
 for itemID,value in pairs(QIQ_QUEST_CLASS_IDS) do assert(type(itemID)=="number" and itemID>0 and value==true); classCount=classCount+1 end
-assert(itemCount==4777, "unexpected item count "..itemCount)
-assert(relationCount==7389, "unexpected relation count "..relationCount)
-assert(classCount==2251, "unexpected class count "..classCount)
-assert(masks[1]==3324 and masks[2]==843 and masks[4]==63 and masks[6]==6 and masks[8]==28 and masks[9]==4 and masks[10]==174 and masks[64]==2945 and masks[66]==2, "mask distribution changed")
+assert(itemCount==5887, "unexpected item count "..itemCount)
+assert(relationCount==8791, "unexpected relation count "..relationCount)
+assert(classCount==3331, "unexpected class count "..classCount)
+local expectedMasks={[1]=3488,[2]=868,[3]=1,[4]=184,[24]=36,[33]=344,[26]=171,[18]=1,[66]=2,[56]=2,[58]=18,[25]=4,[32]=12,[34]=120,[36]=24,[35]=2,[10]=1,[57]=157,[64]=3347,[96]=9}
+for mask,count in pairs(expectedMasks) do assert(masks[mask]==count,"mask distribution changed: "..mask) end
+for mask in pairs(masks) do assert(expectedMasks[mask],"unexpected relation mask") end
 print("data validation: OK (items="..itemCount..", relations="..relationCount..", quest-class="..classCount..")")

@@ -1,3 +1,13 @@
+# Current quest data — 2026-11-06
+
+QLens 2.6.2 exports Questie/QuestieDB commit `21be34023b72cf2ec3027cb9a61a8b72a1910857` for Forever. Unlike the historical snapshot below, this export applies the provider's static corrections and derived passes using its own generation pipeline. Player-dependent runtime corrections are not baked into a universal database. Reproduce with `python tools/refresh_forever.py <QuestieDB checkout>`; see docs/FOREVER-DATA-MANIFEST.json for counts and hashes.
+
+The complete upstream licensing notice and GPL text are included as QLens/QUEST-DATA-LICENSE.md and QLens/QUEST-DATA-GPL.txt. These describe upstream contributions and do not assign a new blanket license to unrelated addon code. Upstream: https://github.com/Questie/QuestieDB/tree/21be34023b72cf2ec3027cb9a61a8b72a1910857.
+
+Current XP/money and reward item counts are read from the game's modern selected-quest context. The source does not contain a complete authoritative Forever XP/money table. Classic reward references remain explicitly labelled; missing values are not invented. Active quest titles/descriptions use the client locale where available.
+
+## Historical provenance (superseded quest snapshot)
+
 # Data provenance — local development build
 
 Quest Item Quests author: Evilion. This file does not assign a new license to the user's addon.

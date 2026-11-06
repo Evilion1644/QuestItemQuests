@@ -1,4 +1,4 @@
-# QLens 2.5.0
+# QLens 2.6.2
 
 Author: Evilion. World of Warcraft: Forever 1.60.1, Interface 16001. Formerly QuestItemQuests.
 
@@ -45,7 +45,7 @@ names, spell/material IDs and material names known to the client or quest guide.
 Data: 2506 profession/recipe entries, 593 materials, Forever 1.60.1.69977.
 Presence does not imply learnability. Borrowed Classic skill requirements are
 labelled. Recipes are not restricted to professions known by the character.
-Version 2.5.0 includes the profession/recipe data and interface update.
+Version 2.6.2 includes the profession/recipe data and interface update.
 
 UI update: labelled quest/profession tooltip sections, persistent counted
 tabs, Arial Narrow with fallback, bordered controls, higher-contrast selection
@@ -67,6 +67,8 @@ Hover a quest marker on the world map to see whether each party member has that 
 
 ## Settings and zone quest tracking
 
-The Settings tab provides eight feature switches. Automatic zone tracking is enabled by default and uses the client quest destination, ignoring intermediate route waypoints. Reference data supplements multiple objectives and acts as fallback. Unknown locations preserve the current watch state. Manual changes last until the zone changes; disabling restores the original watch list. Changes wait until combat ends. Use /qlenszone for diagnostics.
+The Settings tab provides eight feature switches. Automatic zone tracking is enabled by default and uses the client quest destination, ignoring intermediate route waypoints. Reference data supplements multiple objectives and acts as fallback. Unknown locations are hidden automatically; manual tracking is still available. Manual changes last until the zone changes; disabling restores the original watch list. Changes wait until combat ends. Use /qlenszone for diagnostics.
 
-Quest item sparkles are enabled by default. Disable them in Settings; your choice persists across updates. Sparkles replace outlines, and disabling restores your previous graphics settings. Removing the effect may require restarting the game. Quest priority uses live objectives and progress changes, including quests without reference IDs.
+Compatibility: Forever 1.60.1.70790. Quest sparkles have been removed; previous settings are restored once unless changed by the player. When combat data is restricted, priority falls back to quest progress; tracker refresh waits until combat ends. The offline guide does not guarantee coverage of new release quests.
+
+The complete Forever quest export now applies upstream corrections: 5233 quests, 5887 indexed items and 8791 item-quest links. Active quest rewards use the modern quest-log selection and refresh after data loads. Client-localized titles and descriptions take priority; missing source translations fall back to English.

@@ -1,9 +1,6 @@
 local A, G = QIQ, QIQ.Guide
 local ru = A.locale == "ruRU"
 local options = {
- {"questSparkles", "Искрение квестовых предметов", "Quest item sparkles",
-  "Искры вместо контуров. При отключении вернём прежние настройки; для исчезновения искр может понадобиться перезапуск игры.",
-  "Sparkles replace outlines. Disabling restores previous settings; removing the effect may require a game restart."},
  {"zoneTracking", "Задания рядом со мной", "Quests in my current zone",
   "Ставит галочки по месту целей и сдачи. При отключении возвращает прежний список.",
   "Tracks quests by objective and turn-in location. Disabling restores your previous watch list."},
@@ -59,8 +56,8 @@ function G:CreateSettingsPane(parent)
         check:SetScript("OnClick", function(s) A.SetFeature(key, s:GetChecked()); self:RefreshSettingsPane() end)
         self.featureChecks[key] = check
     end
-    text(pane, ru and "Ручная галочка действует до смены локации. Если место задания неизвестно, его галочка не меняется."
-        or "Manual tracking choices last until you change zones. Unknown quest locations keep their current watch state.",
+    text(pane, ru and "Ручная галочка действует до смены локации. Задания с неизвестным местом скрыты; их можно отметить вручную."
+        or "Manual tracking choices last until you change zones. Unknown quest locations are hidden; you can track them manually.",
         14, 24, -570, 938):SetTextColor(.64,.75,.78)
     self.settingsPane = pane; pane:Hide()
 end

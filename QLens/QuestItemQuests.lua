@@ -140,6 +140,24 @@ local function rebuild()
             addQuest(info.questID, info.title)
         end
     end
+    -- Collapsed journal categories must not hide active quest/item relations.
+    local function include(id)
+        if not id or activeQuests[id] then return end
+        if C_QuestLog.IsOnQuest and not C_QuestLog.IsOnQuest(id) then return end
+        local title=C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(id)
+        if not title then return end
+        activeQuests[id]=title
+        activeQuestRows[#activeQuestRows+1]={id=id,title=title,normalizedTitle=normalize(title),index=C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(id)}
+        addQuest(id,title)
+    end
+    if C_QuestLog.GetNumQuestWatches and C_QuestLog.GetQuestIDForQuestWatchIndex then
+        for i=1,C_QuestLog.GetNumQuestWatches() do include(C_QuestLog.GetQuestIDForQuestWatchIndex(i)) end
+    end
+    local guid=UnitGUID and UnitGUID("player")
+    local saved=A.Settings().zoneWatchStates
+    if guid and saved and saved[guid] and C_QuestLog.IsOnQuest then
+        for id in pairs(saved[guid].original or {}) do include(id) end
+    end
 end
 
 local function resolveKnownActive(itemID, diagnostics)
@@ -250,9 +268,9 @@ end
 local function questListFor(link, directItemID, directName)
     local itemID = tonumber(directItemID) or itemIDFromLink(link)
     local name = directName
-    if (not name or trim(name) == "") and GetItemInfo then
+    if (not name or trim(name) == "") and (C_Item and C_Item.GetItemInfo or GetItemInfo) then
         -- Prefer numeric lookup, but never make it the only source of identity.
-        name = GetItemInfo(itemID or link)
+        name = (C_Item and C_Item.GetItemInfo or GetItemInfo)(itemID or link)
     end
     return resolveItem(itemID, link, name)
 end
@@ -283,7 +301,7 @@ local function appendTooltip(tooltip, link, itemID, itemName, force)
     if not itemID or itemID <= 0 then itemID = itemIDFromLink(link) end
     if not itemID then return end
     local name = trim(itemName)
-    if name == "" and GetItemInfo then local ok, value = pcall(GetItemInfo, itemID); if ok then name = value or "" end end
+    if name == "" and (C_Item and C_Item.GetItemInfo or GetItemInfo) then local ok, value = pcall(C_Item and C_Item.GetItemInfo or GetItemInfo, itemID); if ok then name = value or "" end end
     local key = tostring(itemID) .. "\031" .. normalize(name) .. "\031" .. journalRevision
     if not force and tooltip.__QIQLink == key then return end
     local questEnabled = not A.FeatureEnabled or A.FeatureEnabled("itemTooltips")
@@ -367,6 +385,8 @@ local function hookTooltipLifecycle(tooltip)
 end
 
 local function tooltipItem(tooltip, data)
+    if tooltip.IsForbidden and tooltip:IsForbidden() then return end
+    if data and issecretvalue and (issecretvalue(data.id) or issecretvalue(data.hyperlink) or issecretvalue(data.link) or issecretvalue(data.name)) then return end
     -- TooltipDataProcessor can introduce frames not present during addon load.
     -- Add lifecycle cleanup lazily, without registering another item callback.
     hookTooltipLifecycle(tooltip)
@@ -375,20 +395,20 @@ local function tooltipItem(tooltip, data)
     if itemID and itemID <= 0 then itemID = nil end
     local itemName = data and (data.name or data.itemName)
     if not itemID then itemID = itemIDFromLink(link) end
-    if not link and itemID and GetItemInfo then
-        local _, itemLink = GetItemInfo(itemID)
+    if not link and itemID and (C_Item and C_Item.GetItemInfo or GetItemInfo) then
+        local _, itemLink = (C_Item and C_Item.GetItemInfo or GetItemInfo)(itemID)
         link = itemLink
     end
     if tooltip.GetItem then
         local ok, tooltipName, itemLink = pcall(tooltip.GetItem, tooltip)
-        if ok then itemName = itemName or tooltipName; link = link or itemLink end
+        if ok and not (issecretvalue and (issecretvalue(tooltipName) or issecretvalue(itemLink))) then itemName = itemName or tooltipName; link = link or itemLink end
     end
     if (not itemID or itemID <= 0) and link then itemID = itemIDFromLink(link) end
     appendTooltip(tooltip, link, itemID, itemName)
 end
 
 local function hookTooltip(tooltip)
-    if tooltip and not itemHooked[tooltip] then
+    if tooltip and not itemHooked[tooltip] and not (tooltip.IsForbidden and tooltip:IsForbidden()) then
         itemHooked[tooltip] = true
         hookTooltipLifecycle(tooltip)
         if tooltip.HasScript and tooltip:HasScript("OnTooltipSetItem") then
@@ -635,4 +655,10 @@ function A.RefreshFeatureTooltips()
         tooltip.__QIQLink = nil
         hideCompanion(tooltip)
     end
+end
+
+-- Shared live resolver for the guide; new Forever IDs need not exist offline.
+function A.LiveItemQuests(itemID)
+    rebuild()
+    return questListFor("item:"..itemID, itemID) or {}
 end

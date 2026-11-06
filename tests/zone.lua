@@ -33,7 +33,7 @@ local Z=QIQ.ZoneTracking
 assert(Z.Relevant(1,10)==true and Z.Relevant(1,20)==false)
 assert(Z.Relevant(2,10)==false and Z.Relevant(2,20)==true)
 assert(Z.Relevant(3,10)==true and Z.Relevant(4,10)==nil)
-Z.Update(); assert(watches[1] and not watches[2] and watches[3] and watches[4])
+Z.Update(); assert(watches[1] and not watches[2] and watches[3] and not watches[4])
 -- Manual checkbox stays until changing zones.
 C_QuestLog.AddQuestWatch(2); Z.Update(); assert(watches[2])
 map=20; Z.Update(); assert(not watches[1] and watches[2] and not watches[3])

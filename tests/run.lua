@@ -201,3 +201,15 @@ test("Craft and active quest coexist in the same tooltip",function()
 end)
 if failures>0 then error(failures.." runtime tests failed") end
 print("runtime tests: OK")
+-- New item/quest IDs with a collapsed log still resolve through live objectives.
+C_QuestLog.GetNumQuestLogEntries=function() return 1 end
+C_QuestLog.GetInfo=function() return {isHeader=true} end
+C_QuestLog.GetNumQuestWatches=function() return 1 end
+C_QuestLog.GetQuestIDForQuestWatchIndex=function() return 990003 end
+C_QuestLog.IsOnQuest=function(id) return id==990003 end
+C_QuestLog.GetTitleForQuestID=function() return 'Live quest' end
+C_QuestLog.GetQuestObjectives=function() return {{type='item',text='New jewelry: 0/1'}} end
+C_Item=C_Item or {}; C_Item.GetItemInfo=function() return 'New jewelry' end
+local live=QIQ.LiveItemQuests(990004)
+assert(live[1] and live[1].id==990003)
+print('PASS shared guide resolver finds new item/quest IDs in collapsed log')

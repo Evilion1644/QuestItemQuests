@@ -40,6 +40,7 @@ local function onQuest(unit, questID)
 end
 
 local function append(tooltip)
+    if tooltip.IsForbidden and tooltip:IsForbidden() then return end
     if QIQ.FeatureEnabled and not QIQ.FeatureEnabled("partyQuests") then return end
     if tooltip.qlensPartyAdded or not WorldMapFrame or not WorldMapFrame:IsShown() then return end
     if not IsInGroup or not IsInGroup() then return end
@@ -52,7 +53,7 @@ local function append(tooltip)
         local unit = (raid and "raid" or "party") .. i
         if UnitExists(unit) and not UnitIsUnit(unit, "player") then
             local name, realm = UnitName(unit)
-            if name then
+            if name and not (issecretvalue and (issecretvalue(name) or issecretvalue(realm))) then
                 if realm and realm ~= "" then name = name .. "-" .. realm end
                 local status, r, g, b = labels.unknown, .65, .65, .65
                 if UnitIsConnected and not UnitIsConnected(unit) then
@@ -79,9 +80,9 @@ end
 local function install()
     for _, name in ipairs({ "WorldMapTooltip", "GameTooltip" }) do
         local tooltip = _G[name]
-        if tooltip and not hooked[tooltip] then
+        if tooltip and not hooked[tooltip] and not (tooltip.IsForbidden and tooltip:IsForbidden()) then
             hooked[tooltip] = true
-            tooltip:HookScript("OnTooltipCleared", function(self) self.qlensPartyAdded = nil end)
+            if tooltip:HasScript("OnTooltipCleared") then tooltip:HookScript("OnTooltipCleared", function(self) self.qlensPartyAdded = nil end) end
             tooltip:HookScript("OnHide", function(self) self.qlensPartyAdded = nil end)
             hooksecurefunc(tooltip, "Show", append)
         end

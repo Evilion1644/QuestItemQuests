@@ -211,3 +211,20 @@ C_QuestLog.ReadyForTurnIn=function() return true end
 QIQ_ZONE_QUESTS[999999]={finish={[1458]=true},finishAreas={[1497]=true},objectives={}}
 assert(Z.Relevant(999999,1413)==false and Z.Relevant(999999,1458)==true)
 print('PASS dungeon entrance zones and aliases: '..checked..', neighboring zones and completed quest turn-ins')
+
+-- Set interning preserves every entry and makes repeated loads idempotent.
+local function fingerprint()
+ local rows={}
+ local function add(prefix,set)
+  for id,value in pairs(set or {}) do rows[#rows+1]=prefix..':'..id..'='..tostring(value) end
+ end
+ for id,q in pairs(QIQ_ZONE_QUESTS) do
+  add(id..'/finish',q.finish);add(id..'/finishAreas',q.finishAreas)
+  for i,o in ipairs(q.objectives) do add(id..'/'..i..'/maps',o.maps);add(id..'/'..i..'/areas',o.areas) end
+ end
+ table.sort(rows);return table.concat(rows,';')
+end
+local before=fingerprint()
+dofile('QLens/ZoneDataMemory.lua');assert(fingerprint()==before)
+dofile('QLens/ZoneDataMemory.lua');assert(fingerprint()==before)
+print('PASS memory sharing preserves all zone sets and is idempotent')

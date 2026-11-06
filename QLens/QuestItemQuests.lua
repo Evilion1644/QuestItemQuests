@@ -295,6 +295,14 @@ local function hideCompanion(owner, preserveTracking)
     if not preserveTracking then trackedTooltips[owner] = nil end
     owner.__QIQLink = nil
 end
+local function frameMetric(frame, method)
+    if not frame or type(frame[method]) ~= "function" then return nil end
+    local ok, value = pcall(frame[method], frame)
+    -- Unanchored tooltips may return zero values, not even an explicit nil.
+    -- Capture one value before conversion and never compare secret geometry.
+    if not ok or (issecretvalue and issecretvalue(value)) then return nil end
+    return tonumber(value)
+end
 local function appendTooltip(tooltip, link, itemID, itemName, force)
     if not tooltip or (not link and not itemID) then return end
     itemID = tonumber(itemID)
@@ -360,11 +368,11 @@ local function appendTooltip(tooltip, link, itemID, itemName, force)
     companion:Show()
     if companion.ClearAllPoints then companion:ClearAllPoints() end
     if companion.SetPoint then
-        local height = companion.GetHeight and tonumber(companion:GetHeight()) or 0
+        local height = frameMetric(companion, "GetHeight") or 0
         height = math.max(height or 0, 24 + lineCount * 16)
-        local ownerBottom = tooltip.GetBottom and tonumber(tooltip:GetBottom()) or nil
-        local ownerTop = tooltip.GetTop and tonumber(tooltip:GetTop()) or nil
-        local uiHeight = UIParent and UIParent.GetHeight and tonumber(UIParent:GetHeight()) or nil
+        local ownerBottom = frameMetric(tooltip, "GetBottom")
+        local ownerTop = frameMetric(tooltip, "GetTop")
+        local uiHeight = frameMetric(UIParent, "GetHeight")
         if ownerBottom and ownerBottom >= height + 2 then
             companion:SetPoint("TOPLEFT", tooltip, "BOTTOMLEFT", 0, -2)
         elseif ownerTop and uiHeight and uiHeight - ownerTop >= height + 2 then

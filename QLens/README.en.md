@@ -1,4 +1,4 @@
-# QLens 2.6.3
+# QLens 2.6.4
 
 Author: Evilion. World of Warcraft: Forever 1.60.1, Interface 16001. Formerly QuestItemQuests.
 
@@ -45,7 +45,7 @@ names, spell/material IDs and material names known to the client or quest guide.
 Data: 2506 profession/recipe entries, 593 materials, Forever 1.60.1.69977.
 Presence does not imply learnability. Borrowed Classic skill requirements are
 labelled. Recipes are not restricted to professions known by the character.
-Version 2.6.3 includes the profession/recipe data and interface update.
+Version 2.6.4 includes the profession/recipe data and interface update.
 
 UI update: labelled quest/profession tooltip sections, persistent counted
 tabs, Arial Narrow with fallback, bordered controls, higher-contrast selection

@@ -199,6 +199,19 @@ test("Craft and active quest coexist in the same tooltip",function()
  assert(text:find("Первый квест",1,true) and text:find("Кожевничество",1,true) and text:find("Портняжное дело",1,true))
  QIQ_CRAFT_INDEX[100]=nil
 end)
+test("unanchored reward tooltip geometry: zero returns, nil, errors and secrets",function()
+ local token={}
+ local oldSecret=issecretvalue
+ issecretvalue=function(v) return v==token end
+ for _, getter in ipairs({function() end,function() return nil end,function() error('geometry unavailable') end,function() return token end}) do
+  local owner=frame('reward')
+  owner.GetBottom=getter; owner.GetTop=getter
+  modernPostCall(owner,{hyperlink='item:100',name='РУССКИЙ ПРЕДМЕТ'})
+  local c=companionFor(owner)
+  assert(c and c.shown and c.point,'tooltip failed to render without geometry')
+ end
+ issecretvalue=oldSecret
+end)
 if failures>0 then error(failures.." runtime tests failed") end
 print("runtime tests: OK")
 -- New item/quest IDs with a collapsed log still resolve through live objectives.

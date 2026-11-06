@@ -65,6 +65,10 @@ local function putPrioritiesFirst(entries, questIDOf)
 end
 
 local function installSortHook()
+    -- Replacing a native layout method taints its callers on protected clients.
+    -- A post-hook cannot safely reorder its return value either. Keep native
+    -- ordering until a supported ordering API is available on these clients.
+    if issecretvalue then return end
     if InCombatLockdown and InCombatLockdown() then return end
     local tracker = _G.QuestObjectiveTracker
     if not tracker or wrappedTracker == tracker then return end
@@ -446,6 +450,7 @@ local function prunePriorities()
     if changed then markDirty() end
 end
 
+local progressPending = false
 local frame = CreateFrame("Frame")
 for _, event in ipairs({
     "ADDON_LOADED", "PLAYER_LOGIN", "COMBAT_LOG_EVENT_UNFILTERED",
@@ -469,7 +474,10 @@ frame:SetScript("OnEvent", function(_, event, ...)
     if event == "PLAYER_ENTERING_WORLD" then checkProgress(false); installSortHook(); return end
     if event == "PLAYER_REGEN_ENABLED" then installSortHook(); markDirty(); return end
     if event == "QUEST_LOG_UPDATE" then
+        if progressPending then return end
+        progressPending = true
         local function refresh()
+            progressPending = false
             checkProgress(not A.FeatureEnabled or A.FeatureEnabled("combatPriority"))
             prunePriorities()
         end

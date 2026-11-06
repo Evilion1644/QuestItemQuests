@@ -56,3 +56,12 @@ GameTooltip={IsForbidden=function() return true end,HookScript=function() error(
 WorldMapTooltip={HasScript=function() return false end,HookScript=function(_,name) assert(name~='OnTooltipCleared') end}
 QIQ={};dofile('QLens/PartyQuestTooltip.lua')
 print('PASS party tooltip missing legacy script and forbidden tooltip')
+
+-- Protected client must retain native layout functions, even when enabled.
+local original=function() return {} end
+QuestObjectiveTracker={BuildQuestWatchInfos=original,Update=function() end}
+QIQ={FeatureEnabled=function() return true end,ActiveQuests={}}
+dofile('QLens/CombatPriority.lua')
+handler(nil,'PLAYER_LOGIN')
+assert(QuestObjectiveTracker.BuildQuestWatchInfos==original)
+print('PASS protected client keeps native tracker layout methods')

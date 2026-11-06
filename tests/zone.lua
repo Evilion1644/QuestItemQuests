@@ -144,3 +144,70 @@ for id in pairs(QIQ_ZONE_QUESTS) do
 end
 assert(Z.Relevant(123456789,1441)==true)
 print('PASS native destinations for '..total..' reference IDs plus unknown quests, stages, map hierarchy, fallback and errors')
+
+-- Native tracker may retain blocks after watches have already been removed.
+local dirty, visible = 0, {}
+QuestObjectiveTracker = {
+ EnumerateActiveBlocks=function(_, callback)
+  for id in pairs(visible) do callback({id=id}) end
+ end,
+ MarkDirty=function()
+  assert(not combat, 'tracker refresh during combat')
+  dirty=dirty+1
+  visible={}
+  for id, watched in pairs(watches) do if watched then visible[id]=true end end
+ end,
+}
+map=1456
+GetQuestUiMapID=function() return 1413 end
+watches={[1486]=false,[1487]=false}
+C_QuestLog.GetNumQuestLogEntries=function() return 2 end
+C_QuestLog.GetInfo=function(i) return {questID=({1486,1487})[i]} end
+QIQ.SetFeature('zoneTracking',true)
+visible={[1486]=true,[1487]=true}
+local before=dirty
+QIQ.ZoneTracking.Update()
+assert(dirty==before+1 and next(visible)==nil)
+assert(not watches[1486] and not watches[1487])
+-- Stable layout does not continually invalidate itself.
+before=dirty; QIQ.ZoneTracking.Update(); assert(dirty==before)
+-- Changing zone rebuilds even when every watch is already false.
+map=1412; QIQ.ZoneTracking.Update(); assert(dirty==before+1)
+-- Watch changes rebuild using the final list, preserving manual overrides.
+C_QuestLog.AddQuestWatch(1486)
+QIQ.ZoneTracking.Update(); assert(watches[1486])
+map=1456; QIQ.ZoneTracking.Update()
+assert(not watches[1486] and next(visible)==nil)
+-- An old visible block is repaired after combat, never during it.
+visible={[1487]=true}; combat=true; before=dirty
+QIQ.ZoneTracking.Update(); assert(dirty==before and visible[1487])
+combat=false; events(nil,'PLAYER_REGEN_ENABLED')
+assert(dirty==before+1 and next(visible)==nil)
+print('PASS stale tracker blocks, unchanged watches, zone changes, manual watches, stable layout and combat deferral')
+
+-- Include entrance-zone dungeons, without treating other outdoor zones as nearby.
+dofile('QLens/DungeonZones.lua')
+GetQuestUiMapID=function() return 0 end
+C_QuestLog.GetQuestObjectives=function(id)
+ if id==1487 then return {{text='Deviate Ravager',finished=true},{text='Deviate Viper',finished=true},{text='Deviate Dreadfang',finished=false},{text='Deviate Shambler',finished=true}} end
+ return {{text='Any localized objective',finished=false}}
+end
+assert(Z.Relevant(1487,1413)==true)
+assert(Z.Relevant(1487,1412)==false and Z.Relevant(1487,1456)==false)
+assert(Z.Relevant(1013,1421)==true and Z.Relevant(1013,1413)==false)
+-- All mapped entrances and aliases use the same rule, including multiple entrances.
+local checked=0
+for area, entrances in pairs(QIQ_DUNGEON_ENTRANCE_AREAS) do
+ QIQ_ZONE_QUESTS[999999]={finish={},objectives={{names={'Any localized objective'},maps={},areas={[area]=true}}}}
+ for mapID, areas in pairs(QIQ_ZONE_MAP_AREAS) do
+  for entrance in pairs(entrances) do
+   if areas[entrance] then assert(Z.Relevant(999999,mapID)==true); checked=checked+1 end
+  end
+ end
+end
+assert(checked>20)
+-- Finished dungeon objectives no longer keep a quest in the entrance zone.
+C_QuestLog.ReadyForTurnIn=function() return true end
+QIQ_ZONE_QUESTS[999999]={finish={[1458]=true},finishAreas={[1497]=true},objectives={}}
+assert(Z.Relevant(999999,1413)==false and Z.Relevant(999999,1458)==true)
+print('PASS dungeon entrance zones and aliases: '..checked..', neighboring zones and completed quest turn-ins')

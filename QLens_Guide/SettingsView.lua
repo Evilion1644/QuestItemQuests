@@ -2,8 +2,8 @@ local A, G = QIQ, QIQ.Guide
 local ru = A.locale == "ruRU"
 local options = {
  {"zoneTracking", "Задания рядом со мной", "Quests in my current zone",
-  "Ставит галочки по месту целей и сдачи. При отключении возвращает прежний список.",
-  "Tracks quests by objective and turn-in location. Disabling restores your previous watch list."},
+  "Показывает задания текущей локации и расположенных в ней подземелий по месту целей и сдачи. При отключении возвращает прежний список.",
+  "Tracks objectives and turn-ins in your zone and its dungeons. Disabling restores your previous watch list."},
  {"combatPriority", "Нужное задание — наверх списка", "Relevant quest at the top",
   "Поднимает задание при бое с нужной целью или взаимодействии с квестовым объектом.",
   "Moves a quest up when fighting its target or interacting with its quest object."},

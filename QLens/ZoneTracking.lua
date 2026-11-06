@@ -13,7 +13,12 @@ end
 local function contains(maps, map, areas)
     local zoneAreas = QIQ_ZONE_MAP_AREAS and QIQ_ZONE_MAP_AREAS[map]
     if areas and next(areas) and zoneAreas then
-        for id in pairs(areas) do if zoneAreas[id] then return true end end
+        for id in pairs(areas) do
+            if zoneAreas[id] then return true end
+            for entrance in pairs(QIQ_DUNGEON_ENTRANCE_AREAS and QIQ_DUNGEON_ENTRANCE_AREAS[id] or {}) do
+                if zoneAreas[entrance] then return true end
+            end
+        end
         return false
     end
     if areas and next(areas) and not zoneAreas then
@@ -31,7 +36,7 @@ local function contains(maps, map, areas)
     if type(maps) ~= "table" or not next(maps) then return nil end
     return maps[map] == true
 end
--- nil means insufficient evidence: preserve the player's existing choice.
+-- nil means insufficient evidence; automatic tracking requires positive evidence.
 -- Same destination query used by QuestMapFrame_ShowQuestDetails.
 -- true means ignore intermediate route waypoints; do not change map/selection.
 local function zoneMap(map)
@@ -57,7 +62,12 @@ function Z.Relevant(id, map, pois)
     local targetMap = destination(id)
     local currentMap = zoneMap(map)
     local native
-    if targetMap and currentMap then native = targetMap == currentMap end
+    if targetMap and currentMap then
+        native = targetMap == currentMap
+        -- A native destination inside a dungeon also belongs to its entrance zone.
+        local targetAreas = QIQ_ZONE_MAP_AREAS and QIQ_ZONE_MAP_AREAS[targetMap]
+        if not native and targetAreas and contains(nil, currentMap, targetAreas) then native = true end
+    end
     if native == true then return true end
     local unfinishedCount = 0
     for _, objective in ipairs(live or {}) do
@@ -157,6 +167,30 @@ local function state()
     db.zoneWatchStates[guid] = db.zoneWatchStates[guid] or {original={}}
     return db.zoneWatchStates[guid]
 end
+local function refreshTracker(changed)
+    local tracker = QuestObjectiveTracker
+    if not tracker then return end
+    -- Watch events can arrive before the final watch list/layout is ready.
+    -- Also repair old visible blocks when the watches are already correct.
+    local stale = false
+    if C_QuestLog and type(C_QuestLog.GetQuestWatchType) == "function"
+        and type(tracker.EnumerateActiveBlocks) == "function" then
+        call(tracker.EnumerateActiveBlocks, tracker, function(block)
+            if block.id then
+                local ok, watchType = pcall(C_QuestLog.GetQuestWatchType, block.id)
+                if ok and watchType == nil then stale = true end
+            end
+        end)
+    end
+    if changed or stale then
+        -- Use the native layout scheduler, which frees unused blocks and
+        -- updates the container height. Never hide/reparent secure blocks.
+        if type(tracker.MarkDirty) == "function" then call(tracker.MarkDirty, tracker)
+        elseif ObjectiveTrackerFrame and type(ObjectiveTrackerFrame.Update) == "function" then
+            call(ObjectiveTrackerFrame.Update, ObjectiveTrackerFrame)
+        end
+    end
+end
 function Z.Update()
     if InCombatLockdown and InCombatLockdown() then return end
     local saved = state()
@@ -165,7 +199,8 @@ function Z.Update()
     local enabled = A.FeatureEnabled("zoneTracking")
     local map = call(C_Map and C_Map.GetBestMapForUnit, "player")
     if enabled and not map then return end
-    if map ~= lastMap then lastMap, overrides = map, {} end
+    local mapChanged = map ~= lastMap
+    if mapChanged then lastMap, overrides = map, {} end
     local changes = {}
     for _, row in ipairs(rows) do
         local target
@@ -180,6 +215,7 @@ function Z.Update()
     for _, c in ipairs(changes) do if not c.value then change(c.row, false) end end
     for _, c in ipairs(changes) do if c.value then change(c.row, true) end end
     applying = false
+    refreshTracker(#changes > 0 or (enabled and mapChanged))
     if not enabled then
         -- Keep a failed restore pending, e.g. if the client's watch limit was reached.
         for _, row in ipairs(entries(saved) or {}) do

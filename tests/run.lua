@@ -212,6 +212,23 @@ test("unanchored reward tooltip geometry: zero returns, nil, errors and secrets"
  end
  issecretvalue=oldSecret
 end)
+test("companion deduplicates titles without removing quest IDs",function()
+ local old=QIQ_QUEST_TITLES[2]
+ QIQ_QUEST_TITLES[2]=QIQ_QUEST_TITLES[1]
+ local function check()
+  local owner=frame('duplicates')
+  modernPostCall(owner,{hyperlink='item:105',name='multi'})
+  local c=assert(companionFor(owner))
+  local count=0
+  for _,line in ipairs(c.lines) do if line:find(QIQ_QUEST_TITLES[1],1,true) then count=count+1 end end
+  assert(count==1,'duplicate title rendered')
+ end
+ active();check()
+ active(1,2);check()
+ assert(#API.resolveItem(105,'item:105','multi')==2,'resolver lost distinct quest IDs')
+ assert(#QIQ_ITEM_QUESTS[105]==2,'source relations changed')
+ QIQ_QUEST_TITLES[2]=old;active()
+end)
 if failures>0 then error(failures.." runtime tests failed") end
 print("runtime tests: OK")
 -- New item/quest IDs with a collapsed log still resolve through live objectives.

@@ -1,6 +1,6 @@
 QIQ = QIQ or {}
 local A = QIQ
-A.version = "2.6.4"
+A.version = "2.6.5"
 A.locale = GetLocale and GetLocale() or "enUS"
 local strings = {
  settingsTab={"Settings","Настройки"},

@@ -340,7 +340,15 @@ local function appendTooltip(tooltip, link, itemID, itemName, force)
         lineCount=lineCount+1
     end
     if list then
-        for _, q in ipairs(list) do companion:AddDoubleLine(ACTIVE_QUEST_TITLE_COLOR .. q.title .. "|r", A.Settings().key=="off" and "" or "|cffaaaaaa" .. T("openHint", A.KeyName()) .. "|r"); lineCount = lineCount + 1 end
+        local seenTitles = {}
+        for _, q in ipairs(list) do
+            local titleKey = normalize(q.title)
+            if not seenTitles[titleKey] then
+                companion:AddDoubleLine(ACTIVE_QUEST_TITLE_COLOR .. q.title .. "|r", A.Settings().key=="off" and "" or "|cffaaaaaa" .. T("openHint", A.KeyName()) .. "|r")
+                seenTitles[titleKey] = true
+                lineCount = lineCount + 1
+            end
+        end
     elseif static and hasStaticRelation(itemID, questItem) then
         local rewardOnly = true
         for _, row in ipairs(static) do if hasActionRelation(row[2]) then rewardOnly = false break end end
@@ -349,7 +357,15 @@ local function appendTooltip(tooltip, link, itemID, itemName, force)
         local seen = {}
         for _, row in ipairs(static) do
             local visible = rewardOnly and isRewardOnly(row[2]) or (not rewardOnly and hasActionRelation(row[2]))
-            if visible and not seen[row[1]] then companion:AddLine(INACTIVE_QUEST_TITLE_COLOR .. staticQuestTitle(row[1]) .. "|r"); seen[row[1]] = true; lineCount = lineCount + 1 end
+            if visible then
+                local title = staticQuestTitle(row[1])
+                local titleKey = normalize(title)
+                if not seen[titleKey] then
+                    companion:AddLine(INACTIVE_QUEST_TITLE_COLOR .. title .. "|r")
+                    seen[titleKey] = true
+                    lineCount = lineCount + 1
+                end
+            end
         end
     elseif questItem then
         companion:AddLine("|cffffd200" .. T("unknownItem") .. "|r")

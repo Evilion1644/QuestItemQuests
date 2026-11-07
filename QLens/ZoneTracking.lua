@@ -168,6 +168,10 @@ local function state()
     return db.zoneWatchStates[guid]
 end
 local function refreshTracker(changed)
+    -- MarkDirty writes native layout state consumed later by Edit Mode.
+    -- Deferring until combat ends does not prevent taint from propagating.
+    -- Let native watch/log events rebuild protected-client trackers instead.
+    if issecretvalue then return end
     local tracker = QuestObjectiveTracker
     if not tracker then return end
     -- Watch events can arrive before the final watch list/layout is ready.

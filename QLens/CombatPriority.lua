@@ -18,6 +18,9 @@ local function creatureID(guid)
 end
 
 local function markDirty()
+    -- Native dirty/layout state must remain owned by Blizzard on protected
+    -- clients, even out of combat. Native quest events schedule the refresh.
+    if issecretvalue then return end
     if InCombatLockdown and InCombatLockdown() then return end
     local tracker = _G.QuestObjectiveTracker
     if tracker and type(tracker.MarkDirty) == "function" then

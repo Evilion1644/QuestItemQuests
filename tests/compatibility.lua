@@ -65,3 +65,18 @@ dofile('QLens/CombatPriority.lua')
 handler(nil,'PLAYER_LOGIN')
 assert(QuestObjectiveTracker.BuildQuestWatchInfos==original)
 print('PASS protected client keeps native tracker layout methods')
+
+-- No native dirty/layout writes on protected clients, including combat end.
+QuestObjectiveTracker={
+ MarkDirty=function() error('addon wrote native dirty state') end,
+ EnumerateActiveBlocks=function() error('addon inspected protected layout') end,
+}
+ObjectiveTrackerFrame={Update=function() error('addon forced native layout') end}
+handler(nil,'PLAYER_REGEN_ENABLED')
+QIQ.Settings=function() return {} end
+UnitGUID=function() return 'Player-test' end
+C_Map={GetBestMapForUnit=function() return 1413 end}
+C_QuestLog.GetNumQuestLogEntries=function() return 0 end
+dofile('QLens/ZoneTracking.lua')
+QIQ.ZoneTracking.Update()
+print('PASS protected tracker receives no addon dirty/layout calls')
